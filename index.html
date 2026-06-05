@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Budget Dashboard | Pattern</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Display:wght@400;500;600;700;800&family=STIX+Two+Text:ital@1&family=Inconsolata:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  /* Pattern brand palette */
+  --bg:#f7f5f2;
+  --widget:#ffffff;
+  --subtle:#EBF0F5;
+  --muted-bg:#C4D3E3;
+  --blue-bright:#009BFF;    /* Bright Blue - primary accent */
+  --blue-brand:#3A55FF;     /* Brand Blue - CTAs */
+  --cyan:#0096FA;
+  --purple:#770BFF;
+  --light-cyan:#84C9F7;
+  --ink:#090A0F;            /* Dark Primary */
+  --ink-2:#10121A;
+  --muted:#52617D;
+  --dim:#94A1BB;
+  --line:#E1E6F0;
+  --pos:#22A36B;
+  --warn:#E0913C;
+  --neg:#DC2A5C;
+
+  --font-display:'Wix Madefor Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
+  --font-serif:'STIX Two Text',Georgia,serif;
+  --font-mono:'Inconsolata','SF Mono',Consolas,monospace;
+
+  --shadow-sm:0 1px 2px rgba(7,7,8,0.04);
+  --shadow:0 2px 3px rgba(7,7,8,0.06);
+  --shadow-lg:0 2px 3px rgba(7,7,8,0.08), 0 8px 24px rgba(7,7,8,0.06);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);}
+body{font-family:var(--font-display);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+.page{max-width:1280px;margin:0 auto;padding:36px 24px 56px;}
+
+/* ============== MASTHEAD ============== */
+.masthead{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;margin-bottom:26px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.pattern-logo{height:30px;width:auto;display:block;}
+.masthead-meta{font-family:var(--font-display);font-weight:500;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);}
+
+/* ============== HEADER ============== */
+.header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;gap:20px;flex-wrap:wrap;}
+.header-left h1{font-family:var(--font-display);font-weight:600;font-size:38px;line-height:1.05;letter-spacing:-1.2px;color:var(--ink);}
+.header-left h1 em{font-family:var(--font-serif);font-style:italic;color:var(--blue-bright);font-weight:400;}
+.header-left .sub{font-size:13px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.live-dot{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--pos);text-transform:uppercase;letter-spacing:0.06em;padding:3px 10px;border-radius:20px;background:rgba(34,163,107,0.08);border:1px solid rgba(34,163,107,0.2);}
+.live-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--pos);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.header-right{display:flex;align-items:center;gap:10px;}
+.refresh-btn{font-family:var(--font-display);font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px;border:none;background:var(--blue-brand);color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all 0.15s;}
+.refresh-btn:hover{background:#2c43e0;transform:translateY(-1px);box-shadow:0 4px 12px rgba(58,85,255,0.25);}
+.refresh-btn:disabled{opacity:0.5;cursor:wait;transform:none;box-shadow:none;}
+.refresh-icon{width:14px;height:14px;}
+.refresh-btn.refreshing .refresh-icon{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.export-btn{font-family:var(--font-display);font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px;background:var(--widget);color:var(--ink);border:1px solid var(--line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.export-btn:hover{border-color:var(--blue-bright);color:var(--blue-bright);}
+
+/* ============== LOADING / ERROR ============== */
+.state{padding:60px 24px;text-align:center;background:var(--widget);border-radius:12px;border:1px solid var(--line);}
+.state-icon{width:48px;height:48px;margin:0 auto 16px;}
+.state h2{font-family:var(--font-display);font-weight:600;font-size:18px;margin-bottom:6px;color:var(--ink);}
+.state p{font-size:13px;color:var(--muted);max-width:480px;margin:0 auto;}
+.spinner{display:inline-block;width:48px;height:48px;border:3px solid var(--line);border-top-color:var(--blue-bright);border-radius:50%;animation:spin 0.9s linear infinite;}
+.error-state{border-color:rgba(220,42,92,0.3);background:rgba(220,42,92,0.03);}
+.error-state h2{color:var(--neg);}
+.error-detail{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:14px;padding:10px;background:var(--subtle);border-radius:6px;text-align:left;display:inline-block;max-width:600px;word-break:break-all;}
+
+/* ============== TIME / FILTERS ============== */
+.tabs-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;background:var(--widget);padding:5px;border-radius:10px;border:1px solid var(--line);}
+.tab{font-family:var(--font-display);font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;border:none;background:transparent;cursor:pointer;color:var(--muted);transition:all 0.12s;}
+.tab:hover{color:var(--ink);}
+.tab.active{background:var(--ink);color:#fff;}
+.range-info{font-size:12px;color:var(--muted);}
+.range-info strong{color:var(--ink);font-weight:600;}
+.custom-range{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-8px 0 20px;padding:12px 14px;background:var(--widget);border:1px solid var(--line);border-radius:10px;animation:fadeIn .25s ease-out;}
+.custom-range label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
+.custom-range input[type="date"]{font-family:var(--font-display);font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);outline:none;}
+.custom-range input[type="date"]:focus{border-color:var(--blue-bright);box-shadow:0 0 0 3px rgba(0,155,255,0.12);}
+.apply-btn{font-family:var(--font-display);font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;border:none;background:var(--blue-brand);color:#fff;cursor:pointer;}
+.apply-btn:hover{background:#2c43e0;}
+.custom-hint{font-size:11px;color:var(--muted);font-family:var(--font-mono);}
+
+/* ============== KPI GRID ============== */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+.metric{background:var(--widget);border-radius:12px;border:1px solid var(--line);border-top:3px solid var(--blue-bright);padding:16px 18px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
+.metric.hero{border-top-color:var(--blue-brand);}
+.metric.warn{border-top-color:var(--warn);}
+.metric.danger{border-top-color:var(--neg);}
+.metric-label{font-family:var(--font-display);font-weight:500;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;}
+.metric-value{font-family:var(--font-display);font-weight:700;font-size:24px;color:var(--ink);letter-spacing:-0.5px;font-variant-numeric:tabular-nums;line-height:1.1;}
+.metric-sub{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;justify-content:space-between;}
+.delta{font-family:var(--font-display);font-weight:600;font-size:11px;display:inline-flex;align-items:center;gap:2px;font-variant-numeric:tabular-nums;}
+.delta.pos{color:var(--pos);}
+.delta.neg{color:var(--neg);}
+.delta.neu{color:var(--muted);}
+
+/* ============== CALLOUT ============== */
+.callout{background:var(--widget);border:1px solid var(--line);border-left:3px solid var(--blue-bright);border-radius:12px;padding:16px 20px;margin-bottom:22px;font-size:13.5px;color:var(--ink-2);line-height:1.6;box-shadow:var(--shadow-sm);}
+.callout strong{color:var(--ink);font-weight:600;}
+
+/* ============== CHART ROW ============== */
+.chart-row{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:22px;}
+.card{background:var(--widget);border-radius:12px;border:1px solid var(--line);padding:20px 22px;box-shadow:var(--shadow-sm);}
+.card-title{font-family:var(--font-display);font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;}
+.card-title em{font-family:var(--font-serif);font-style:italic;color:var(--blue-bright);font-weight:400;text-transform:none;letter-spacing:0;font-size:13px;}
+.legend{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:500;}
+.legend-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+
+/* Client bars (right card) */
+.type-row{margin-bottom:11px;}
+.type-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;gap:8px;align-items:baseline;}
+.type-label .lbl{color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.type-label .val{color:var(--muted);font-family:var(--font-mono);font-weight:500;flex-shrink:0;font-size:11px;}
+.bar-track{background:var(--subtle);border-radius:4px;height:7px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;background:var(--blue-bright);transition:width 0.4s ease-out;}
+
+/* ============== SECTION HEADER ============== */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin:6px 0 14px;flex-wrap:wrap;gap:8px;}
+.section-title{font-family:var(--font-display);font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
+.section-title em{font-family:var(--font-serif);font-style:italic;color:var(--blue-bright);font-weight:400;text-transform:none;letter-spacing:0;font-size:13px;}
+
+/* ============== INSIGHTS GRID (3 cards) ============== */
+.insight-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
+.insight-card{background:var(--widget);border-radius:12px;border:1px solid var(--line);padding:18px;box-shadow:var(--shadow-sm);}
+.insight-card.good{border-top:3px solid var(--pos);}
+.insight-card.bad{border-top:3px solid var(--neg);}
+.insight-card.warn-card{border-top:3px solid var(--warn);}
+.insight-head{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.insight-head h3{font-family:var(--font-display);font-weight:600;font-size:13px;color:var(--ink);}
+.insight-sub{font-size:11px;color:var(--muted);margin-bottom:14px;}
+.insight-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);}
+.insight-row:last-child{border-bottom:none;}
+.insight-rank{font-family:var(--font-mono);font-weight:600;font-size:11px;color:var(--dim);min-width:18px;padding-top:2px;}
+.insight-body{flex:1;min-width:0;}
+.insight-name{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.insight-meta{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.insight-value{font-family:var(--font-mono);font-weight:600;font-size:13px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.empty-state{text-align:center;padding:20px;font-size:12px;color:var(--muted);}
+
+/* ============== TABLE ============== */
+.table-wrap{background:var(--widget);border-radius:12px;border:1px solid var(--line);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:22px;}
+.table-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:10px;}
+.table-head h3{font-family:var(--font-display);font-weight:600;font-size:13px;color:var(--ink);}
+.table-head .meta{font-size:11px;color:var(--muted);}
+.table-scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:780px;}
+th{text-align:left;padding:11px 12px;font-size:10px;font-weight:600;color:var(--muted);border-bottom:2px solid var(--blue-bright);text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;background:#fafbfd;user-select:none;cursor:pointer;}
+th.no-sort{cursor:default;}
+th:not(.no-sort):hover{color:var(--blue-bright);}
+td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr{transition:background .1s;}
+tbody tr:hover td{background:rgba(0,155,255,0.04);}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono);font-size:12.5px;}
+.sort-icon{opacity:0.4;font-size:9px;margin-left:3px;}
+.desc-td{max-width:300px;color:var(--ink-2);font-size:12px;line-height:1.4;}
+.desc-td .ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:0.02em;white-space:nowrap;}
+.b-au{background:rgba(0,155,255,0.10);color:#0077c0;}
+.b-nz{background:rgba(34,163,107,0.10);color:#177a4f;}
+.b-us{background:rgba(224,145,60,0.12);color:#a35c1d;}
+.b-anz{background:rgba(119,11,255,0.10);color:#5a08c2;}
+.b-obj-ret{background:rgba(0,150,250,0.10);color:#0077c0;}
+.b-obj-pros{background:rgba(119,11,255,0.10);color:#5a08c2;}
+.b-obj-conv{background:rgba(58,85,255,0.10);color:#2c43e0;}
+.b-obj-aware{background:rgba(224,145,60,0.10);color:#a35c1d;}
+.b-obj-traffic{background:rgba(132,201,247,0.18);color:#0d6299;}
+.b-obj-dpa{background:rgba(255,107,157,0.12);color:#b8336c;}
+.b-obj-adv{background:rgba(34,163,107,0.10);color:#177a4f;}
+.b-obj-other{background:rgba(196,211,227,0.4);color:#52617D;}
+.b-obj-video{background:rgba(167,139,250,0.12);color:#6244c2;}
+.roas{font-weight:700;}
+.roas-strong{color:var(--pos);}
+.roas-good{color:#177a4f;}
+.roas-warn{color:var(--warn);}
+.roas-bad{color:var(--neg);}
+.roas-neutral{color:var(--muted);}
+.table-foot{padding:12px 20px;text-align:center;font-size:11px;color:var(--muted);border-top:1px solid var(--line);background:#fafbfd;}
+.pager{display:inline-flex;gap:4px;}
+.pager button{font-family:var(--font-display);font-size:11px;font-weight:500;padding:4px 9px;border-radius:5px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--muted);}
+.pager button.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.pager button:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* ============== FILTERS PANEL ============== */
+.filters-panel{background:var(--widget);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px;box-shadow:var(--shadow-sm);}
+.filter-group{margin-bottom:12px;}
+.filter-group:last-child{margin-bottom:0;}
+.filter-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:7px;}
+.filter-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.chip{font-family:var(--font-display);font-size:11px;font-weight:500;padding:5px 11px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all 0.12s;}
+.chip:hover{border-color:var(--blue-bright);color:var(--blue-bright);}
+.chip.active{background:var(--blue-brand);color:#fff;border-color:var(--blue-brand);font-weight:600;}
+.search-input{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-family:var(--font-display);font-size:13px;outline:none;background:#fff;color:var(--ink);}
+.search-input:focus{border-color:var(--blue-bright);box-shadow:0 0 0 3px rgba(0,155,255,0.12);}
+.clear-filters{font-family:var(--font-display);font-size:11px;font-weight:500;color:var(--neg);background:none;border:none;cursor:pointer;padding:4px 0;display:inline-flex;align-items:center;gap:3px;}
+.clear-filters:hover{text-decoration:underline;}
+
+/* ============== RECOMMENDATIONS ============== */
+.recs{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.rec{background:var(--widget);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;gap:16px;align-items:flex-start;box-shadow:var(--shadow-sm);font-size:13px;line-height:1.55;color:var(--ink-2);}
+.rec-n{font-family:var(--font-serif);font-style:italic;font-size:24px;line-height:1;color:var(--blue-bright);flex-shrink:0;min-width:34px;padding-top:1px;}
+.rec strong{color:var(--ink);font-weight:600;}
+
+/* ============== FOOTER ============== */
+.foot{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.7;}
+.foot-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.prepared{display:flex;align-items:center;gap:10px;}
+.prepared span{font-family:var(--font-display);font-weight:500;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
+.foot-logo{height:20px;width:auto;display:block;}
+.foot a{color:var(--blue-bright);text-decoration:none;}
+.foot a:hover{text-decoration:underline;}
+
+/* ============== RESPONSIVE ============== */
+@media(max-width:960px){
+  .metric-grid{grid-template-columns:repeat(2,1fr);}
+  .chart-row{grid-template-columns:1fr;}
+  .insight-grid{grid-template-columns:1fr;}
+  .header-left h1{font-size:30px;}
+}
+@media(max-width:600px){
+  .page{padding:24px 16px 40px;}
+  .header-left h1{font-size:26px;}
+  .header-right{width:100%;}
+}
+
+/* ============== CHAT FAB + PANEL ============== */
+.chat-fab{position:fixed;bottom:24px;right:24px;z-index:50;display:inline-flex;align-items:center;gap:10px;padding:13px 20px;border-radius:50px;border:none;font-family:var(--font-display);font-weight:600;font-size:14px;color:#fff;background:linear-gradient(95deg,#009BFF 0%,#3A55FF 100%);box-shadow:0 8px 24px rgba(58,85,255,0.35), 0 2px 6px rgba(0,0,0,0.08);cursor:pointer;transition:all 0.2s;}
+.chat-fab:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(58,85,255,0.45), 0 3px 8px rgba(0,0,0,0.1);}
+.chat-fab.active{display:none;}
+
+.chat-panel{position:fixed;top:0;right:0;bottom:0;width:440px;max-width:100vw;background:var(--widget);border-left:1px solid var(--line);box-shadow:-12px 0 40px rgba(7,7,8,0.08);z-index:60;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
+.chat-panel.open{transform:translateX(0);}
+.chat-panel[hidden]{display:flex !important;}
+
+.chat-header{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fafbfd 0%,#fff 100%);}
+.chat-header h3{font-family:var(--font-display);font-weight:600;font-size:17px;color:var(--ink);letter-spacing:-0.3px;}
+.chat-header h3 em{font-family:var(--font-serif);font-style:italic;color:var(--blue-bright);font-weight:400;}
+.chat-sub{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;}
+.chat-sub::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pos);animation:pulse 2s ease-in-out infinite;}
+.chat-close{background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.chat-close:hover{background:var(--subtle);color:var(--ink);}
+
+.chat-messages{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;}
+.chat-messages::-webkit-scrollbar{width:6px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--muted-bg);border-radius:3px;}
+
+.chat-empty{padding:8px 0;}
+.chat-empty-title{font-family:var(--font-display);font-weight:600;font-size:15px;color:var(--ink);margin-bottom:6px;}
+.chat-empty-sub{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:14px;}
+.chat-starters{display:flex;flex-direction:column;gap:6px;}
+.starter{font-family:var(--font-display);font-size:12.5px;font-weight:500;text-align:left;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;transition:all 0.12s;line-height:1.4;}
+.starter:hover{border-color:var(--blue-bright);color:var(--blue-bright);background:rgba(0,155,255,0.03);transform:translateX(2px);}
+
+.chat-msg{display:flex;flex-direction:column;gap:4px;animation:fadeIn 0.25s ease-out;max-width:90%;}
+.chat-msg.user{align-self:flex-end;align-items:flex-end;}
+.chat-msg.assistant,.chat-msg.error{align-self:flex-start;}
+.chat-bubble{padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;}
+.chat-msg.user .chat-bubble{background:var(--blue-brand);color:#fff;border-bottom-right-radius:4px;}
+.chat-msg.assistant .chat-bubble{background:var(--subtle);color:var(--ink);border-bottom-left-radius:4px;}
+.chat-msg.error .chat-bubble{background:rgba(220,42,92,0.08);color:var(--neg);border:1px solid rgba(220,42,92,0.2);}
+.chat-bubble strong{font-weight:600;}
+.chat-bubble em{font-style:italic;color:inherit;}
+.chat-bubble code{font-family:var(--font-mono);font-size:12.5px;background:rgba(0,0,0,0.05);padding:1px 5px;border-radius:3px;}
+.chat-bubble ul,.chat-bubble ol{padding-left:20px;margin:4px 0;}
+.chat-bubble li{margin:2px 0;}
+.chat-bubble p{margin:0 0 6px 0;}
+.chat-bubble p:last-child{margin-bottom:0;}
+.chat-meta{font-size:10px;color:var(--muted);padding:0 6px;}
+.chat-msg.user .chat-meta{text-align:right;}
+
+.chat-typing{display:flex;gap:4px;padding:12px 14px;background:var(--subtle);border-radius:14px;border-bottom-left-radius:4px;align-self:flex-start;width:fit-content;}
+.chat-typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typing 1.4s infinite ease-in-out;}
+.chat-typing span:nth-child(2){animation-delay:0.2s;}
+.chat-typing span:nth-child(3){animation-delay:0.4s;}
+@keyframes typing{0%,60%,100%{transform:translateY(0);opacity:0.4;}30%{transform:translateY(-4px);opacity:1;}}
+
+.chat-input-wrap{display:flex;align-items:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:#fff;}
+.chat-input{flex:1;font-family:var(--font-display);font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;resize:none;outline:none;color:var(--ink);background:#fafbfd;max-height:160px;line-height:1.4;}
+.chat-input:focus{border-color:var(--blue-bright);background:#fff;box-shadow:0 0 0 3px rgba(0,155,255,0.1);}
+.chat-send{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;border:none;background:var(--blue-brand);color:#fff;cursor:pointer;flex-shrink:0;transition:all 0.12s;}
+.chat-send:hover:not(:disabled){background:#2c43e0;transform:translateY(-1px);}
+.chat-send:disabled{opacity:0.4;cursor:not-allowed;}
+
+.chat-status{padding:4px 16px 8px;font-size:10.5px;color:var(--muted);min-height:20px;font-family:var(--font-mono);}
+.chat-status.error{color:var(--neg);}
+
+@media(max-width:600px){
+  .chat-panel{width:100vw;}
+  .chat-fab span{display:none;}
+  .chat-fab{padding:14px;}
+}
+
+/* Hide chat panel until JS runs */
+[hidden]{display:none !important;}
+
+/* Fade-in animation */
+.fade-in{animation:fadeIn .4s ease-out;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- MASTHEAD -->
+  <div class="masthead">
+    <svg class="pattern-logo" preserveAspectRatio="xMinYMid meet" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 675 135.7">
+      <g>
+        <g>
+          <path style="fill:#009BFF" d="M81.55,0.99L0.99,81.55c-1.32,1.32-1.32,3.47,0,4.8l19.84,19.84c1.32,1.32,3.47,1.32,4.8,0l80.56-80.56c1.32-1.32,1.32-3.47,0-4.8L86.35,0.99C85.02-0.33,82.88-0.33,81.55,0.99z"/>
+          <path style="fill:#009BFF" d="M114.73,34.17L67.37,81.54c-1.32,1.32-1.32,3.47,0,4.8l19.84,19.84c1.32,1.32,3.47,1.32,4.8,0l47.36-47.36c1.32-1.32,1.32-3.47,0-4.8l-19.84-19.84C118.2,32.85,116.05,32.85,114.73,34.17z"/>
+        </g>
+        <path style="fill:#231F20" d="M254.36,64.21c0,24.35-18.47,42.98-40.69,42.98c-12.74,0-22.39-5.23-28.6-13.73v40.25c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2V25.35c0-1.1,0.89-2,2-2h13.65c1.1,0,2,0.89,2,2v9.77c6.21-8.66,15.85-13.89,28.6-13.89C235.9,21.23,254.36,40.02,254.36,64.21z M236.71,64.21c0-15.2-11.11-26.15-25.82-26.15c-14.71,0-25.82,10.95-25.82,26.15c0,15.2,11.11,26.15,25.82,26.15C225.6,90.35,236.71,79.4,236.71,64.21z"/>
+        <path style="fill:#231F20" d="M347.84,25.35v77.71c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2v-9.77c-6.21,8.66-15.85,13.89-28.6,13.89c-22.22,0-40.69-18.79-40.69-42.98c0-24.35,18.46-42.98,40.69-42.98c12.74,0,22.39,5.23,28.6,13.73v-9.6c0-1.1,0.89-2,2-2h13.65C346.95,23.35,347.84,24.25,347.84,25.35z M330.19,64.21c0-15.2-11.11-26.15-25.82-26.15s-25.82,10.95-25.82,26.15c0,15.2,11.11,26.15,25.82,26.15S330.19,79.4,330.19,64.21z"/>
+        <path style="fill:#231F20" d="M493.81,91.01c9.04,0,15.99-3.75,20.09-8.81c0.61-0.75,1.69-0.91,2.52-0.42l11.12,6.5c1.02,0.59,1.33,1.95,0.62,2.89c-7.59,10.04-19.37,16.03-34.51,16.03c-26.96,0-44.45-18.46-44.45-42.98c0-24.18,17.48-42.98,43.14-42.98c24.35,0,41.02,19.61,41.02,43.14c0,2.45-0.33,5.07-0.65,7.35h-65.04C470.44,84.47,480.74,91.01,493.81,91.01z M515.54,57.34c-2.45-14.05-12.75-20.1-23.37-20.1c-13.24,0-22.22,7.84-24.67,20.1H515.54z"/>
+        <path style="fill:#231F20" d="M675,54.89v48.17c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2V56.69c0-12.42-7.19-18.96-18.3-18.96c-11.6,0-20.75,6.86-20.75,23.53v41.8c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2V25.35c0-1.1,0.89-2,2-2h13.65c1.1,0,2,0.89,2,2v8.46c5.39-8.5,14.22-12.58,25.33-12.58C661.93,21.23,675,33.65,675,54.89z"/>
+        <path style="fill:#231F20" d="M583.58,21.88c-10.29,0-20.26,4.09-25.16,15.2V25.35c0-1.1-0.89-2-2-2h-13.65c-1.1,0-2,0.89-2,2v77.71c0,1.1,0.89,2,2,2h13.65c1.1,0,2-0.89,2-2V63.88c0-18.3,13.28-22.88,25.16-22.88h6.15c1.1,0,2-0.89,2-2V23.88c0-1.1-0.89-2-2-2H583.58z"/>
+        <path style="fill:#231F20" d="M397.4,40.35c1.1,0,2-0.89,2-2v-13c0-1.1-0.89-2-2-2h-21V2c0-1.1-0.89-2-2-2h-13.65c-1.1,0-2,0.89-2,2v78.96c0,16.77,8.09,24.83,24.97,24.83l13.68-0.01c1.1,0,2-0.9,2-2V91.42c0-1.1-0.9-2-2-2c-2.84,0-8.3-0.01-10.5-0.01c-8.05,0-10.5-2.09-10.5-9.85V40.35H397.4z"/>
+        <path style="fill:#231F20" d="M445.33,40.35c1.1,0,2-0.89,2-2v-13c0-1.1-0.89-2-2-2h-21V2c0-1.1-0.89-2-2-2h-13.65c-1.1,0-2,0.89-2,2v78.96c0,16.77,8.09,24.83,24.97,24.83l13.68-0.01c1.1,0,1.99-0.9,1.99-2V91.42c0-1.1-0.9-2-2-2c-2.84,0-8.3-0.01-10.5-0.01c-8.05,0-10.5-2.09-10.5-9.85V40.35H445.33z"/>
+      </g>
+    </svg>
+    <div class="masthead-meta">Social Performance · Live Dashboard</div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Social budget <em>overview</em></h1>
+      <div class="sub" id="headerSub">
+        <span class="live-dot">Live</span>
+        <span id="dateRangeText">Loading from sheet…</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="export-btn" id="exportBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+      <button class="refresh-btn" id="refreshBtn">
+        <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="state" id="loadingState">
+    <div class="spinner"></div>
+    <h2 style="margin-top:18px;">Pulling live data from sheet</h2>
+    <p>Fetching Facebook Revenue Sheet and Client Overview from the published Google Sheet…</p>
+  </div>
+
+  <!-- ERROR -->
+  <div class="state error-state" id="errorState" hidden>
+    <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="#DC2A5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <h2>Couldn't reach the sheet</h2>
+    <p>The published Google Sheet didn't respond. Check that the sheet is still published to the web and reachable, then try again.</p>
+    <div class="error-detail" id="errorDetail"></div>
+    <button class="refresh-btn" style="margin-top:18px;" onclick="loadData()">Try again</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" hidden>
+
+    <!-- TIME RANGE TABS -->
+    <div class="tabs-row">
+      <div class="tabs" id="rangeTabs">
+        <button class="tab" data-range="7">Last 7 days</button>
+        <button class="tab" data-range="30">Last 30 days</button>
+        <button class="tab active" data-range="90">Last 90 days</button>
+        <button class="tab" data-range="all">All time</button>
+        <button class="tab" data-range="custom">Custom</button>
+      </div>
+      <div class="range-info" id="rangeInfo"></div>
+    </div>
+    <div class="custom-range" id="customRange" hidden>
+      <label>From <input type="date" id="customFrom"></label>
+      <label>To <input type="date" id="customTo"></label>
+      <button class="apply-btn" onclick="applyCustomRange()">Apply</button>
+      <span class="custom-hint" id="customHint"></span>
+    </div>
+
+    <!-- KPI GRID -->
+    <div class="metric-grid" id="metricGrid"></div>
+
+    <!-- EXECUTIVE SUMMARY -->
+    <div class="callout" id="summary"></div>
+
+    <!-- FILTERS -->
+    <div class="filters-panel" id="filtersPanel">
+      <div class="filter-group">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search client, account, or campaign name…">
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Client</div>
+        <div class="filter-chips" id="clientChips"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Region</div>
+        <div class="filter-chips" id="regionChips"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Campaign objective</div>
+        <div class="filter-chips" id="objectiveChips"></div>
+      </div>
+      <div id="clearWrap" style="display:none;">
+        <button class="clear-filters" onclick="clearFilters()">✕ Clear all filters</button>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Daily spend &amp; revenue <em>trend</em></div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:var(--blue-bright)"></span>Spend</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span>FB Revenue</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--pos);border-radius:50%;"></span>ROAS</span>
+        </div>
+        <div style="position:relative;height:280px;"><canvas id="dailyChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Spend by <em>client</em></div>
+        <div id="clientBars" style="max-height:320px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- INSIGHTS GRID -->
+    <div class="section-header">
+      <div class="section-title">Performance <em>highlights</em></div>
+    </div>
+    <div class="insight-grid">
+      <div class="insight-card good">
+        <div class="insight-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22A36B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          <h3>Top performers</h3>
+        </div>
+        <div class="insight-sub">Highest ROAS · min $50 spend</div>
+        <div id="topPerformers"></div>
+      </div>
+      <div class="insight-card bad">
+        <div class="insight-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2A5C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+          <h3>Underperformers</h3>
+        </div>
+        <div class="insight-sub">ROAS &lt; 1 · min $50 spend</div>
+        <div id="underPerformers"></div>
+      </div>
+      <div class="insight-card warn-card">
+        <div class="insight-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E0913C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <h3>Wasted spend</h3>
+        </div>
+        <div class="insight-sub">$0 revenue but &gt;$20 spend</div>
+        <div id="wastedSpend"></div>
+      </div>
+    </div>
+
+    <!-- BY CLIENT TABLE -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div>
+          <h3>By client</h3>
+          <div class="meta">Account roll-up · click headers to sort</div>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortByClient('client')">Client <span class="sort-icon" id="cs-client">↕</span></th>
+              <th class="no-sort">Region</th>
+              <th class="num" onclick="sortByClient('spend')">Spend <span class="sort-icon" id="cs-spend">↓</span></th>
+              <th class="num" onclick="sortByClient('revenue')">FB Revenue <span class="sort-icon" id="cs-revenue">↕</span></th>
+              <th class="num" onclick="sortByClient('roas')">FB ROAS <span class="sort-icon" id="cs-roas">↕</span></th>
+              <th class="num" onclick="sortByClient('campaigns')">Campaigns <span class="sort-icon" id="cs-campaigns">↕</span></th>
+              <th class="num" onclick="sortByClient('share')">Share <span class="sort-icon" id="cs-share">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="clientTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CAMPAIGN-LEVEL TABLE -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div>
+          <h3>By campaign</h3>
+          <div class="meta" id="campaignTableMeta"></div>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortByCampaign('client')">Client <span class="sort-icon" id="ts-client">↕</span></th>
+              <th class="no-sort">Campaign</th>
+              <th class="no-sort">Region</th>
+              <th class="no-sort">Objective</th>
+              <th class="num" onclick="sortByCampaign('spend')">Spend <span class="sort-icon" id="ts-spend">↓</span></th>
+              <th class="num" onclick="sortByCampaign('revenue')">Revenue <span class="sort-icon" id="ts-revenue">↕</span></th>
+              <th class="num" onclick="sortByCampaign('roas')">ROAS <span class="sort-icon" id="ts-roas">↕</span></th>
+              <th class="num" onclick="sortByCampaign('days')">Days <span class="sort-icon" id="ts-days">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="campaignTableBody"></tbody>
+        </table>
+      </div>
+      <div class="table-foot">
+        <span id="pageInfo"></span> &nbsp;·&nbsp;
+        <span class="pager" id="pager"></span>
+      </div>
+    </div>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="section-header">
+      <div class="section-title">What we'd <em>do next</em></div>
+    </div>
+    <div class="recs" id="recs"></div>
+
+  </div>
+
+  <!-- CHAT FAB (floating button) -->
+  <button class="chat-fab" id="chatFab" onclick="openChat()" hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span>Ask the data</span>
+  </button>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel" id="chatPanel" hidden>
+    <div class="chat-header">
+      <div>
+        <h3>Ask your <em>data</em></h3>
+        <div class="chat-sub">Pattern Bifrost · <span id="chatModel">Claude Sonnet 4.6</span></div>
+      </div>
+      <button class="chat-close" onclick="closeChat()" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-empty">
+        <div class="chat-empty-title">What would you like to know?</div>
+        <div class="chat-empty-sub">I can see whatever's in your current filtered view — date range, clients, regions, and objectives. Try one of these or ask your own:</div>
+        <div class="chat-starters">
+          <button class="starter" onclick="askQuestion('Which clients should we scale and which should we cut? Be specific with numbers.')">Which to scale / cut?</button>
+          <button class="starter" onclick="askQuestion('What is driving the wasted spend? Pick the worst offender and tell me what is likely happening.')">Wasted spend drivers</button>
+          <button class="starter" onclick="askQuestion('How does spend distribution compare to revenue distribution across clients? Where are we over- or under-investing?')">Spend vs revenue mix</button>
+          <button class="starter" onclick="askQuestion('Find campaigns whose performance pattern looks unusual — possible tracking issues, sudden ROAS shifts, or anything an analyst should investigate.')">Find anomalies</button>
+          <button class="starter" onclick="askQuestion('Write a 4-bullet weekly status update I can paste into Slack for our team, summarising performance this period.')">Slack-ready weekly update</button>
+        </div>
+      </div>
+    </div>
+    <div class="chat-input-wrap">
+      <textarea class="chat-input" id="chatInput" placeholder="Ask anything about this view…" rows="1"></textarea>
+      <button class="chat-send" id="chatSend" onclick="sendMessage()" aria-label="Send">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <div class="chat-status" id="chatStatus"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="foot">
+    <div class="foot-row">
+      <div class="prepared">
+        <span>Prepared by</span>
+        <svg class="foot-logo" preserveAspectRatio="xMinYMid meet" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 675 135.7">
+          <g>
+            <g>
+              <path style="fill:#009BFF" d="M81.55,0.99L0.99,81.55c-1.32,1.32-1.32,3.47,0,4.8l19.84,19.84c1.32,1.32,3.47,1.32,4.8,0l80.56-80.56c1.32-1.32,1.32-3.47,0-4.8L86.35,0.99C85.02-0.33,82.88-0.33,81.55,0.99z"/>
+              <path style="fill:#009BFF" d="M114.73,34.17L67.37,81.54c-1.32,1.32-1.32,3.47,0,4.8l19.84,19.84c1.32,1.32,3.47,1.32,4.8,0l47.36-47.36c1.32-1.32,1.32-3.47,0-4.8l-19.84-19.84C118.2,32.85,116.05,32.85,114.73,34.17z"/>
+            </g>
+            <path style="fill:#231F20" d="M254.36,64.21c0,24.35-18.47,42.98-40.69,42.98c-12.74,0-22.39-5.23-28.6-13.73v40.25c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2V25.35c0-1.1,0.89-2,2-2h13.65c1.1,0,2,0.89,2,2v9.77c6.21-8.66,15.85-13.89,28.6-13.89C235.9,21.23,254.36,40.02,254.36,64.21z M236.71,64.21c0-15.2-11.11-26.15-25.82-26.15c-14.71,0-25.82,10.95-25.82,26.15c0,15.2,11.11,26.15,25.82,26.15C225.6,90.35,236.71,79.4,236.71,64.21z"/>
+            <path style="fill:#231F20" d="M347.84,25.35v77.71c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2v-9.77c-6.21,8.66-15.85,13.89-28.6,13.89c-22.22,0-40.69-18.79-40.69-42.98c0-24.35,18.46-42.98,40.69-42.98c12.74,0,22.39,5.23,28.6,13.73v-9.6c0-1.1,0.89-2,2-2h13.65C346.95,23.35,347.84,24.25,347.84,25.35z M330.19,64.21c0-15.2-11.11-26.15-25.82-26.15s-25.82,10.95-25.82,26.15c0,15.2,11.11,26.15,25.82,26.15S330.19,79.4,330.19,64.21z"/>
+            <path style="fill:#231F20" d="M493.81,91.01c9.04,0,15.99-3.75,20.09-8.81c0.61-0.75,1.69-0.91,2.52-0.42l11.12,6.5c1.02,0.59,1.33,1.95,0.62,2.89c-7.59,10.04-19.37,16.03-34.51,16.03c-26.96,0-44.45-18.46-44.45-42.98c0-24.18,17.48-42.98,43.14-42.98c24.35,0,41.02,19.61,41.02,43.14c0,2.45-0.33,5.07-0.65,7.35h-65.04C470.44,84.47,480.74,91.01,493.81,91.01z M515.54,57.34c-2.45-14.05-12.75-20.1-23.37-20.1c-13.24,0-22.22,7.84-24.67,20.1H515.54z"/>
+            <path style="fill:#231F20" d="M675,54.89v48.17c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2V56.69c0-12.42-7.19-18.96-18.3-18.96c-11.6,0-20.75,6.86-20.75,23.53v41.8c0,1.1-0.89,2-2,2h-13.65c-1.1,0-2-0.89-2-2V25.35c0-1.1,0.89-2,2-2h13.65c1.1,0,2,0.89,2,2v8.46c5.39-8.5,14.22-12.58,25.33-12.58C661.93,21.23,675,33.65,675,54.89z"/>
+            <path style="fill:#231F20" d="M583.58,21.88c-10.29,0-20.26,4.09-25.16,15.2V25.35c0-1.1-0.89-2-2-2h-13.65c-1.1,0-2,0.89-2,2v77.71c0,1.1,0.89,2,2,2h13.65c1.1,0,2-0.89,2-2V63.88c0-18.3,13.28-22.88,25.16-22.88h6.15c1.1,0,2-0.89,2-2V23.88c0-1.1-0.89-2-2-2H583.58z"/>
+            <path style="fill:#231F20" d="M397.4,40.35c1.1,0,2-0.89,2-2v-13c0-1.1-0.89-2-2-2h-21V2c0-1.1-0.89-2-2-2h-13.65c-1.1,0-2,0.89-2,2v78.96c0,16.77,8.09,24.83,24.97,24.83l13.68-0.01c1.1,0,2-0.9,2-2V91.42c0-1.1-0.9-2-2-2c-2.84,0-8.3-0.01-10.5-0.01c-8.05,0-10.5-2.09-10.5-9.85V40.35H397.4z"/>
+            <path style="fill:#231F20" d="M445.33,40.35c1.1,0,2-0.89,2-2v-13c0-1.1-0.89-2-2-2h-21V2c0-1.1-0.89-2-2-2h-13.65c-1.1,0-2,0.89-2,2v78.96c0,16.77,8.09,24.83,24.97,24.83l13.68-0.01c1.1,0,1.99-0.9,1.99-2V91.42c0-1.1-0.9-2-2-2c-2.84,0-8.3-0.01-10.5-0.01c-8.05,0-10.5-2.09-10.5-9.85V40.35H445.33z"/>
+          </g>
+        </svg>
+      </div>
+      <div style="text-align:right;font-size:11px;color:var(--muted);">
+        Source: <strong>New Social Budget Sheet 2026</strong> · live fetch from published CSV<br>
+        Last refresh: <span id="lastRefresh">—</span>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:10.5px;color:var(--dim);">
+      ROAS = FB-attributed revenue ÷ ad spend. Wasted spend = campaigns with &gt;$20 cost but $0 attributed revenue. Region and objective derived from account/campaign naming conventions.
+    </div>
+  </div>
+
+</div>
+
+<script>
+// =============================================================================
+// DATA SOURCE — live fetch from published Google Sheet
+// =============================================================================
+const PUB_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT-eN2NO8xpsyuBEKnx_e4Qi8CfgzcFvclr0C5Cfe1_Lpl0Odpadd7d56UtbZRoGVIrUkY7Ccjh2Yof/pub';
+const GID_FB = 131056311;          // "Facebook Revenue Sheet"
+const GID_CLIENT = 220651307;      // "Client Overview"
+
+const csvUrl = gid => `${PUB_BASE}?output=csv&single=true&gid=${gid}&t=${Date.now()}`;
+
+// =============================================================================
+// CSV PARSER — handles quoted fields with commas
+// =============================================================================
+function parseCSV(text){
+  const rows = []; let row = []; let field = ''; let inQ = false;
+  for (let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if (inQ){
+      if (ch === '"' && text[i+1] === '"'){ field += '"'; i++; }
+      else if (ch === '"'){ inQ = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"'){ inQ = true; }
+      else if (ch === ','){ row.push(field); field = ''; }
+      else if (ch === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+      else if (ch === '\r'){ /* skip */ }
+      else { field += ch; }
+    }
+  }
+  if (field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+const parseMoney = s => {
+  if (!s) return 0;
+  const v = parseFloat(String(s).replace(/[$,\s]/g,''));
+  return isFinite(v) ? v : 0;
+};
+
+const parseISODate = s => {
+  if (!s) return null;
+  // "2026-01-01" format
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s + 'T00:00:00');
+  return null;
+};
+
+const fmtMoney = v => {
+  const abs = Math.abs(v);
+  if (abs >= 1e6) return '$' + (v/1e6).toFixed(2) + 'M';
+  if (abs >= 1e3) return '$' + (v/1e3).toFixed(1) + 'K';
+  return '$' + Math.round(v).toLocaleString();
+};
+const fmtMoneyFull = v => '$' + Math.round(v).toLocaleString();
+const fmtNum = v => v.toLocaleString();
+const fmtDate = d => d.toLocaleDateString('en-AU', { day:'numeric', month:'short' });
+const fmtDateLong = d => d.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
+
+// Derive region from account/campaign text
+function getRegion(account, campaign){
+  const t = ((account||'') + ' ' + (campaign||'')).toUpperCase();
+  if (/\| NZ |NZ \||-NZ-|NEW ZEALAND|WESTGATE|PURE NEW ZEALAND/.test(t)) return 'NZ';
+  if (/\bUSA?\b|AMERICA|HELEN KAMINSKI USA/.test(t)) return 'US';
+  if (/AU\+NZ|AU \+ NZ|\bANZ\b/.test(t)) return 'ANZ';
+  return 'AU';
+}
+
+// Derive campaign objective
+function getObjective(campaign){
+  const t = (campaign||'').toLowerCase();
+  if (/retarget|remarket/.test(t)) return 'Retargeting';
+  if (/prospect/.test(t)) return 'Prospecting';
+  if (/aware|reach|opening/.test(t)) return 'Awareness';
+  if (/traffic|lpv|consideration/.test(t)) return 'Traffic';
+  if (/video|brand building/.test(t)) return 'Brand / Video';
+  if (/\bdpa\b/.test(t)) return 'DPA';
+  if (/advantage|adv\+|adv\s/.test(t)) return 'Advantage+';
+  if (/conversion|conv |purchase|sale/.test(t)) return 'Conversion';
+  return 'Other';
+}
+
+// Region badge class
+const regionBadge = r => `b-${r.toLowerCase()}`;
+const objectiveBadge = o => {
+  const map = {
+    'Retargeting':'b-obj-ret','Prospecting':'b-obj-pros','Conversion':'b-obj-conv',
+    'Awareness':'b-obj-aware','Traffic':'b-obj-traffic','DPA':'b-obj-dpa',
+    'Advantage+':'b-obj-adv','Brand / Video':'b-obj-video','Other':'b-obj-other',
+  };
+  return map[o] || 'b-obj-other';
+};
+
+// ROAS color class
+function roasClass(roas, spend){
+  if (spend === 0 || !isFinite(roas)) return 'roas-neutral';
+  if (roas >= 5) return 'roas-strong';
+  if (roas >= 2) return 'roas-good';
+  if (roas >= 1) return 'roas-warn';
+  return 'roas-bad';
+}
+
+// =============================================================================
+// STATE
+// =============================================================================
+let rawFB = [];           // all FB campaign-day rows (after parsing)
+let accountToClient = {}; // FB account name → client display name
+let currentRange = 90;    // days, 'all', or 'custom'
+let customFrom = null;    // Date object when range='custom'
+let customTo = null;      // Date object when range='custom'
+let filters = { clients: new Set(), regions: new Set(), objectives: new Set(), search: '' };
+let clientSort = { field: 'spend', dir: -1 };
+let campaignSort = { field: 'spend', dir: -1 };
+let campaignPage = 1;
+const PAGE_SIZE = 25;
+let dailyChart = null;
+
+// =============================================================================
+// LOAD DATA (live from sheet)
+// =============================================================================
+async function loadData(){
+  const refreshBtn = document.getElementById('refreshBtn');
+  refreshBtn.classList.add('refreshing');
+  refreshBtn.disabled = true;
+  document.getElementById('loadingState').hidden = false;
+  document.getElementById('errorState').hidden = true;
+  document.getElementById('dashboard').hidden = true;
+
+  try {
+    // Fetch both sheets in parallel
+    const [fbText, coText] = await Promise.all([
+      fetch(csvUrl(GID_FB)).then(r => { if (!r.ok) throw new Error('FB sheet HTTP ' + r.status); return r.text(); }),
+      fetch(csvUrl(GID_CLIENT)).then(r => { if (!r.ok) throw new Error('Client Overview HTTP ' + r.status); return r.text(); }),
+    ]);
+
+    // Parse Client Overview to extract account→client mapping (columns 12, 13, 14: N, O, P — Facebook Ad Account, GA4 Property, Client Name)
+    const coRows = parseCSV(coText);
+    accountToClient = {};
+    for (let i = 1; i < coRows.length; i++){
+      const r = coRows[i];
+      const fbAcc = (r[12]||'').trim();
+      const client = (r[14]||'').trim();
+      if (fbAcc && client) accountToClient[fbAcc] = client;
+    }
+
+    // Parse FB Revenue Sheet
+    const fbRows = parseCSV(fbText);
+    rawFB = [];
+    for (let i = 1; i < fbRows.length; i++){
+      const r = fbRows[i];
+      if (!r[0] || r.length < 5) continue;
+      const d = parseISODate(r[0]);
+      if (!d) continue;
+      const account = (r[2]||'').trim();
+      const campaign = (r[3]||'').trim();
+      if (!account) continue;
+      const cost = parseMoney(r[4]);
+      const revenue = parseMoney(r[5]);
+      rawFB.push({
+        d, account, campaign, cost, revenue,
+        client: accountToClient[account] || account.replace(/^(AU|NZ|US)\s*\|\s*/,'').replace(/Ad Account$/,'').trim(),
+        region: getRegion(account, campaign),
+        objective: getObjective(campaign),
+      });
+    }
+
+    if (rawFB.length === 0) throw new Error('No data rows parsed from the sheet.');
+
+    // Update last refresh timestamp
+    document.getElementById('lastRefresh').textContent =
+      new Date().toLocaleString('en-AU', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+    // Build filter chips
+    buildFilters();
+
+    // Restore state from URL hash (if present)
+    loadURLState();
+
+    // Render
+    renderAll();
+
+    document.getElementById('loadingState').hidden = true;
+    document.getElementById('dashboard').hidden = false;
+    document.getElementById('dashboard').classList.add('fade-in');
+    document.getElementById('exportBtn').disabled = false;
+    document.getElementById('chatFab').hidden = false;
+  } catch (err){
+    console.error(err);
+    document.getElementById('loadingState').hidden = true;
+    document.getElementById('errorState').hidden = false;
+    document.getElementById('errorDetail').textContent = err.message + ' · ' + csvUrl(GID_FB);
+  } finally {
+    refreshBtn.classList.remove('refreshing');
+    refreshBtn.disabled = false;
+  }
+}
+
+// =============================================================================
+// FILTER + RENDER
+// =============================================================================
+function getDateRange(){
+  if (!rawFB.length) return { from: null, to: null };
+  const maxD = new Date(Math.max(...rawFB.map(r => r.d.getTime())));
+  if (currentRange === 'all') {
+    const minD = new Date(Math.min(...rawFB.map(r => r.d.getTime())));
+    return { from: minD, to: maxD };
+  }
+  if (currentRange === 'custom' && customFrom && customTo) {
+    return { from: customFrom, to: customTo };
+  }
+  const from = new Date(maxD);
+  from.setDate(from.getDate() - currentRange + 1);
+  return { from, to: maxD };
+}
+
+function applyCustomRange(){
+  const fromVal = document.getElementById('customFrom').value;
+  const toVal = document.getElementById('customTo').value;
+  if (!fromVal || !toVal){
+    document.getElementById('customHint').textContent = 'Pick both dates';
+    document.getElementById('customHint').style.color = 'var(--neg)';
+    return;
+  }
+  const from = new Date(fromVal + 'T00:00:00');
+  const to = new Date(toVal + 'T23:59:59');
+  if (from > to){
+    document.getElementById('customHint').textContent = 'From must be before To';
+    document.getElementById('customHint').style.color = 'var(--neg)';
+    return;
+  }
+  customFrom = from;
+  customTo = to;
+  currentRange = 'custom';
+  document.getElementById('customHint').textContent = '';
+  campaignPage = 1;
+  syncURL();
+  renderAll();
+}
+
+function getFiltered(){
+  const { from, to } = getDateRange();
+  return rawFB.filter(r => {
+    if (from && r.d < from) return false;
+    if (to && r.d > to) return false;
+    if (filters.clients.size && !filters.clients.has(r.client)) return false;
+    if (filters.regions.size && !filters.regions.has(r.region)) return false;
+    if (filters.objectives.size && !filters.objectives.has(r.objective)) return false;
+    if (filters.search){
+      const q = filters.search.toLowerCase();
+      if (!r.client.toLowerCase().includes(q) &&
+          !r.account.toLowerCase().includes(q) &&
+          !r.campaign.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function buildFilters(){
+  const clients = [...new Set(rawFB.map(r => r.client))].sort();
+  const regions = [...new Set(rawFB.map(r => r.region))].sort();
+  const objectives = [...new Set(rawFB.map(r => r.objective))].sort();
+
+  const chip = (label, group) => `<button class="chip" data-group="${group}" data-val="${label.replace(/"/g,'&quot;')}" onclick="toggleFilter('${group}','${label.replace(/'/g,"\\'")}')">${label}</button>`;
+
+  document.getElementById('clientChips').innerHTML = clients.map(c => chip(c, 'clients')).join('');
+  document.getElementById('regionChips').innerHTML = regions.map(r => chip(r, 'regions')).join('');
+  document.getElementById('objectiveChips').innerHTML = objectives.map(o => chip(o, 'objectives')).join('');
+}
+
+function toggleFilter(group, value){
+  const set = filters[group];
+  if (set.has(value)) set.delete(value); else set.add(value);
+  updateChipStates();
+  campaignPage = 1;
+  syncURL();
+  renderAll();
+}
+
+function updateChipStates(){
+  document.querySelectorAll('.chip').forEach(el => {
+    const g = el.dataset.group, v = el.dataset.val;
+    el.classList.toggle('active', filters[g].has(v));
+  });
+  const totalActive = filters.clients.size + filters.regions.size + filters.objectives.size + (filters.search ? 1 : 0);
+  document.getElementById('clearWrap').style.display = totalActive > 0 ? 'block' : 'none';
+}
+
+function clearFilters(){
+  filters.clients.clear(); filters.regions.clear(); filters.objectives.clear(); filters.search = '';
+  document.getElementById('searchInput').value = '';
+  updateChipStates();
+  campaignPage = 1;
+  syncURL();
+  renderAll();
+}
+
+// =============================================================================
+// RENDER
+// =============================================================================
+function renderAll(){
+  const data = getFiltered();
+  const { from, to } = getDateRange();
+  const totalSpan = rawFB.length ? (new Date(Math.max(...rawFB.map(r=>r.d.getTime()))) - new Date(Math.min(...rawFB.map(r=>r.d.getTime())))) / (1000*60*60*24) + 1 : 0;
+
+  document.getElementById('dateRangeText').innerHTML =
+    `<strong>${from ? fmtDateLong(from) : '—'} → ${to ? fmtDateLong(to) : '—'}</strong> · ${rawFB.length.toLocaleString()} rows across ${Math.round(totalSpan)} days`;
+  document.getElementById('rangeInfo').innerHTML =
+    `<strong>${data.length.toLocaleString()}</strong> rows in view`;
+
+  renderKPIs(data);
+  renderSummary(data, from, to);
+  renderDailyChart(data);
+  renderClientBars(data);
+  renderInsights(data);
+  renderClientTable(data);
+  renderCampaignTable(data);
+  renderRecs(data);
+}
+
+function renderKPIs(data){
+  const spend = data.reduce((s,r) => s + r.cost, 0);
+  const revenue = data.reduce((s,r) => s + r.revenue, 0);
+  const roas = spend > 0 ? revenue / spend : 0;
+  const campaigns = new Set(data.map(r => r.account + '||' + r.campaign)).size;
+  const clients = new Set(data.map(r => r.client)).size;
+  const days = new Set(data.map(r => r.d.toISOString().slice(0,10))).size;
+  const avgDaily = days > 0 ? spend / days : 0;
+
+  // Wasted spend
+  const byCampaign = {};
+  data.forEach(r => {
+    const k = r.account + '||' + r.campaign;
+    if (!byCampaign[k]) byCampaign[k] = { spend: 0, revenue: 0, client: r.client, campaign: r.campaign };
+    byCampaign[k].spend += r.cost;
+    byCampaign[k].revenue += r.revenue;
+  });
+  const wastedArr = Object.values(byCampaign).filter(c => c.spend > 20 && c.revenue === 0);
+  const wastedSpend = wastedArr.reduce((s,c) => s + c.spend, 0);
+  const wastedPct = spend > 0 ? (wastedSpend / spend) * 100 : 0;
+
+  // Period-over-period
+  const dates = [...new Set(data.map(r => r.d.toISOString().slice(0,10)))].sort();
+  const mid = Math.floor(dates.length / 2);
+  const firstSet = new Set(dates.slice(0, mid));
+  const lastSet = new Set(dates.slice(mid));
+  const firstSpend = data.filter(r => firstSet.has(r.d.toISOString().slice(0,10))).reduce((s,r) => s + r.cost, 0);
+  const lastSpend = data.filter(r => lastSet.has(r.d.toISOString().slice(0,10))).reduce((s,r) => s + r.cost, 0);
+  const firstRev = data.filter(r => firstSet.has(r.d.toISOString().slice(0,10))).reduce((s,r) => s + r.revenue, 0);
+  const lastRev = data.filter(r => lastSet.has(r.d.toISOString().slice(0,10))).reduce((s,r) => s + r.revenue, 0);
+  // Normalize by number of days to compare like-for-like
+  const fDays = firstSet.size || 1, lDays = lastSet.size || 1;
+  const spendDelta = firstSpend > 0 ? (((lastSpend/lDays) - (firstSpend/fDays)) / (firstSpend/fDays)) * 100 : 0;
+  const revDelta = firstRev > 0 ? (((lastRev/lDays) - (firstRev/fDays)) / (firstRev/fDays)) * 100 : 0;
+
+  const deltaHtml = (d) => {
+    if (Math.abs(d) < 0.5) return `<span class="delta neu">±0.0%</span>`;
+    const cls = d > 0 ? 'pos' : 'neg';
+    const arrow = d > 0 ? '↗' : '↘';
+    return `<span class="delta ${cls}">${arrow} ${Math.abs(d).toFixed(1)}%</span>`;
+  };
+
+  const cards = [
+    { cls: 'hero', label: 'Total spend', value: fmtMoney(spend), sub: `${days} days · ${fmtMoney(avgDaily)}/day avg`, delta: deltaHtml(spendDelta) },
+    { label: 'FB revenue', value: fmtMoney(revenue), sub: 'Meta-attributed', delta: deltaHtml(revDelta) },
+    { label: 'Blended ROAS', value: roas.toFixed(2) + 'x', sub: roas >= 3 ? 'Strong' : roas >= 1.5 ? 'Healthy' : roas >= 1 ? 'Breakeven' : 'Below target' },
+    { label: 'Active campaigns', value: campaigns.toLocaleString(), sub: `${clients} clients` },
+    { label: 'Avg daily spend', value: fmtMoney(avgDaily), sub: `Over ${days} days` },
+    { label: 'Revenue / day', value: fmtMoney(days > 0 ? revenue/days : 0), sub: 'FB-attributed' },
+    { cls: 'warn', label: 'Wasted spend', value: fmtMoney(wastedSpend), sub: `${wastedArr.length} campaigns · ${wastedPct.toFixed(1)}% of total` },
+    { cls: roas < 1 ? 'danger' : '', label: 'Net contribution', value: fmtMoney(revenue - spend), sub: revenue >= spend ? 'Above breakeven' : 'Below breakeven' },
+  ];
+
+  document.getElementById('metricGrid').innerHTML = cards.map(c => `
+    <div class="metric ${c.cls||''}">
+      <div class="metric-label">${c.label}</div>
+      <div class="metric-value">${c.value}</div>
+      <div class="metric-sub"><span>${c.sub}</span>${c.delta||''}</div>
+    </div>`).join('');
+}
+
+function renderSummary(data, from, to){
+  if (!data.length){
+    document.getElementById('summary').innerHTML = '<strong>No data in view.</strong> Adjust filters or time range to see results.';
+    return;
+  }
+  const spend = data.reduce((s,r) => s + r.cost, 0);
+  const revenue = data.reduce((s,r) => s + r.revenue, 0);
+  const roas = spend > 0 ? revenue/spend : 0;
+
+  // Top spend client
+  const byClient = {};
+  data.forEach(r => {
+    if (!byClient[r.client]) byClient[r.client] = { spend: 0, revenue: 0 };
+    byClient[r.client].spend += r.cost;
+    byClient[r.client].revenue += r.revenue;
+  });
+  const clientArr = Object.entries(byClient).map(([n,v]) => ({ name:n, ...v, roas: v.spend>0 ? v.revenue/v.spend : 0 }));
+  clientArr.sort((a,b) => b.spend - a.spend);
+  const topSpend = clientArr[0];
+  const topShare = topSpend ? (topSpend.spend / spend * 100) : 0;
+  const bestROAS = [...clientArr].filter(c => c.spend >= 100).sort((a,b) => b.roas - a.roas)[0];
+
+  // Top objective by spend
+  const byObj = {};
+  data.forEach(r => {
+    if (!byObj[r.objective]) byObj[r.objective] = 0;
+    byObj[r.objective] += r.cost;
+  });
+  const topObj = Object.entries(byObj).sort((a,b) => b[1] - a[1])[0];
+
+  const span = Math.round((to - from) / (1000*60*60*24)) + 1;
+
+  document.getElementById('summary').innerHTML = `
+    <strong>Executive summary.</strong> Across the last <strong>${span} days</strong> the portfolio spent <strong>${fmtMoneyFull(spend)}</strong> and drove <strong>${fmtMoneyFull(revenue)}</strong> in Meta-attributed revenue — a blended <strong>${roas.toFixed(2)}x ROAS</strong>${roas >= 2 ? ', comfortably above breakeven' : roas >= 1 ? ', narrowly above breakeven' : ', <strong style="color:var(--neg)">below breakeven</strong>'}. ${topSpend ? `<strong>${topSpend.name}</strong> is the largest spend account at <strong>${fmtMoneyFull(topSpend.spend)}</strong> (${topShare.toFixed(0)}% of total) with ${topSpend.roas.toFixed(2)}x ROAS. ` : ''}${bestROAS && bestROAS.name !== (topSpend && topSpend.name) ? `<strong>${bestROAS.name}</strong> delivers the strongest efficiency at <strong>${bestROAS.roas.toFixed(1)}x</strong>. ` : ''}${topObj ? `<strong>${topObj[0]}</strong> is the dominant campaign objective (${(topObj[1]/spend*100).toFixed(0)}% of spend).` : ''}
+  `;
+}
+
+function renderDailyChart(data){
+  // Aggregate by day
+  const byDay = {};
+  data.forEach(r => {
+    const k = r.d.toISOString().slice(0,10);
+    if (!byDay[k]) byDay[k] = { date: r.d, spend: 0, revenue: 0 };
+    byDay[k].spend += r.cost;
+    byDay[k].revenue += r.revenue;
+  });
+  const days = Object.values(byDay).sort((a,b) => a.date - b.date);
+
+  const ctx = document.getElementById('dailyChart');
+  if (dailyChart) dailyChart.destroy();
+
+  dailyChart = new Chart(ctx, {
+    data: {
+      labels: days.map(d => fmtDate(d.date)),
+      datasets: [
+        { type: 'bar', label: 'Spend', data: days.map(d => d.spend), backgroundColor: 'rgba(0,155,255,0.7)', borderColor: '#009BFF', borderWidth: 0, borderRadius: 3, yAxisID: 'y' },
+        { type: 'bar', label: 'FB Revenue', data: days.map(d => d.revenue), backgroundColor: 'rgba(119,11,255,0.6)', borderColor: '#770BFF', borderWidth: 0, borderRadius: 3, yAxisID: 'y' },
+        { type: 'line', label: 'ROAS', data: days.map(d => d.spend > 0 ? d.revenue/d.spend : 0), borderColor: '#22A36B', backgroundColor: '#22A36B', borderWidth: 2, tension: 0.3, pointRadius: 2, pointHoverRadius: 4, yAxisID: 'y1' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#fff', titleColor: '#090A0F', bodyColor: '#52617D', borderColor: '#E1E6F0', borderWidth: 1, padding: 10, cornerRadius: 8, titleFont: { family: 'Wix Madefor Display', weight: 600 }, bodyFont: { family: 'Inconsolata', size: 12 },
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label === 'ROAS') return `ROAS: ${ctx.parsed.y.toFixed(2)}x`;
+              return `${ctx.dataset.label}: ${fmtMoneyFull(ctx.parsed.y)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { font: { family: 'Wix Madefor Display', size: 10 }, color: '#94A1BB', maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } },
+        y: { position: 'left', ticks: { font: { family: 'Inconsolata', size: 10 }, color: '#94A1BB', callback: v => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.04)' } },
+        y1: { position: 'right', ticks: { font: { family: 'Inconsolata', size: 10 }, color: '#22A36B', callback: v => v.toFixed(1) + 'x' }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+function renderClientBars(data){
+  const byClient = {};
+  data.forEach(r => {
+    if (!byClient[r.client]) byClient[r.client] = { spend: 0, revenue: 0 };
+    byClient[r.client].spend += r.cost;
+    byClient[r.client].revenue += r.revenue;
+  });
+  const arr = Object.entries(byClient).map(([n,v]) => ({ name:n, ...v, roas: v.spend>0 ? v.revenue/v.spend : 0 }));
+  arr.sort((a,b) => b.spend - a.spend);
+  const max = arr[0]?.spend || 1;
+
+  document.getElementById('clientBars').innerHTML = arr.length === 0
+    ? `<div class="empty-state">No data in view</div>`
+    : arr.map(c => `
+      <div class="type-row">
+        <div class="type-label">
+          <span class="lbl" title="${c.name}">${c.name}</span>
+          <span class="val">${fmtMoney(c.spend)} · ${c.roas.toFixed(1)}x</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, c.spend/max*100)}%;"></div></div>
+      </div>`).join('');
+}
+
+function renderInsights(data){
+  // Aggregate by campaign
+  const byC = {};
+  data.forEach(r => {
+    const k = r.client + '||' + r.campaign;
+    if (!byC[k]) byC[k] = { client: r.client, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0 };
+    byC[k].spend += r.cost;
+    byC[k].revenue += r.revenue;
+  });
+  const camps = Object.values(byC).map(c => ({ ...c, roas: c.spend > 0 ? c.revenue/c.spend : 0 }));
+
+  // Top performers (best campaign per client, dedup so 5 different clients show)
+  const bestByClient = {};
+  camps.filter(c => c.spend >= 50).forEach(c => {
+    if (!bestByClient[c.client] || c.roas > bestByClient[c.client].roas) bestByClient[c.client] = c;
+  });
+  const top = Object.values(bestByClient).sort((a,b) => b.roas - a.roas).slice(0,5);
+  document.getElementById('topPerformers').innerHTML = top.length === 0
+    ? `<div class="empty-state">No campaigns ≥ $50 spend</div>`
+    : top.map((c,i) => `
+      <div class="insight-row">
+        <div class="insight-rank">${String(i+1).padStart(2,'0')}</div>
+        <div class="insight-body">
+          <div class="insight-name" title="${c.client}">${c.client}</div>
+          <div class="insight-meta" title="${c.campaign}">${c.campaign}</div>
+        </div>
+        <div class="insight-value roas-strong">${c.roas.toFixed(1)}x<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:1px;">${fmtMoney(c.spend)}</div></div>
+      </div>`).join('');
+
+  // Underperformers (worst campaign per client, ROAS < 1, min $50)
+  const worstByClient = {};
+  camps.filter(c => c.spend >= 50 && c.roas < 1).forEach(c => {
+    if (!worstByClient[c.client] || c.spend > worstByClient[c.client].spend) worstByClient[c.client] = c;
+  });
+  const under = Object.values(worstByClient).sort((a,b) => b.spend - a.spend).slice(0,5);
+  document.getElementById('underPerformers').innerHTML = under.length === 0
+    ? `<div class="empty-state">🎉 No campaigns below breakeven</div>`
+    : under.map((c,i) => `
+      <div class="insight-row">
+        <div class="insight-rank">${String(i+1).padStart(2,'0')}</div>
+        <div class="insight-body">
+          <div class="insight-name" title="${c.client}">${c.client}</div>
+          <div class="insight-meta" title="${c.campaign}">${c.campaign}</div>
+        </div>
+        <div class="insight-value roas-bad">${c.roas.toFixed(2)}x<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:1px;">${fmtMoney(c.spend)}</div></div>
+      </div>`).join('');
+
+  // Wasted spend (>$20 spend, $0 revenue)
+  const wasted = camps.filter(c => c.spend > 20 && c.revenue === 0).sort((a,b) => b.spend - a.spend).slice(0,5);
+  document.getElementById('wastedSpend').innerHTML = wasted.length === 0
+    ? `<div class="empty-state">No wasted spend</div>`
+    : wasted.map((c,i) => `
+      <div class="insight-row">
+        <div class="insight-rank">${String(i+1).padStart(2,'0')}</div>
+        <div class="insight-body">
+          <div class="insight-name" title="${c.client}">${c.client}</div>
+          <div class="insight-meta" title="${c.campaign}">${c.campaign}</div>
+        </div>
+        <div class="insight-value" style="color:var(--warn)">${fmtMoney(c.spend)}<div style="font-size:10px;color:var(--muted);font-weight:500;margin-top:1px;">${c.objective}</div></div>
+      </div>`).join('');
+}
+
+function renderClientTable(data){
+  const byClient = {};
+  data.forEach(r => {
+    if (!byClient[r.client]) byClient[r.client] = { client: r.client, regions: new Set(), spend: 0, revenue: 0, campaigns: new Set() };
+    byClient[r.client].regions.add(r.region);
+    byClient[r.client].spend += r.cost;
+    byClient[r.client].revenue += r.revenue;
+    byClient[r.client].campaigns.add(r.account + '||' + r.campaign);
+  });
+  const totalSpend = data.reduce((s,r) => s + r.cost, 0);
+  let arr = Object.values(byClient).map(c => ({
+    client: c.client, regions: [...c.regions].sort(),
+    spend: c.spend, revenue: c.revenue,
+    roas: c.spend > 0 ? c.revenue/c.spend : 0,
+    campaigns: c.campaigns.size, share: totalSpend > 0 ? c.spend/totalSpend*100 : 0,
+  }));
+
+  const { field, dir } = clientSort;
+  arr.sort((a,b) => {
+    let av = a[field], bv = b[field];
+    if (typeof av === 'string') return dir * av.localeCompare(bv);
+    return dir * (av - bv);
+  });
+
+  // Update sort indicators
+  ['client','spend','revenue','roas','campaigns','share'].forEach(f => {
+    const el = document.getElementById('cs-' + f);
+    if (el) el.textContent = field === f ? (dir === -1 ? '↓' : '↑') : '↕';
+  });
+
+  document.getElementById('clientTableBody').innerHTML = arr.length === 0
+    ? `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">No data in view</td></tr>`
+    : arr.map(c => `
+      <tr>
+        <td style="font-weight:600;color:var(--ink);">${c.client}</td>
+        <td>${c.regions.map(r => `<span class="badge ${regionBadge(r)}">${r}</span>`).join(' ')}</td>
+        <td class="num">${fmtMoneyFull(c.spend)}</td>
+        <td class="num">${fmtMoneyFull(c.revenue)}</td>
+        <td class="num roas ${roasClass(c.roas, c.spend)}">${c.roas.toFixed(2)}x</td>
+        <td class="num">${c.campaigns}</td>
+        <td class="num" style="color:var(--muted);">${c.share.toFixed(1)}%</td>
+      </tr>`).join('');
+}
+
+function sortByClient(field){
+  if (clientSort.field === field) clientSort.dir *= -1;
+  else { clientSort.field = field; clientSort.dir = -1; }
+  renderClientTable(getFiltered());
+}
+
+function renderCampaignTable(data){
+  const byC = {};
+  data.forEach(r => {
+    const k = r.client + '||' + r.campaign;
+    if (!byC[k]) byC[k] = { client: r.client, account: r.account, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, days: new Set() };
+    byC[k].spend += r.cost;
+    byC[k].revenue += r.revenue;
+    byC[k].days.add(r.d.toISOString().slice(0,10));
+  });
+  let arr = Object.values(byC).map(c => ({ ...c, days: c.days.size, roas: c.spend > 0 ? c.revenue/c.spend : 0 }));
+
+  const { field, dir } = campaignSort;
+  arr.sort((a,b) => {
+    let av = a[field], bv = b[field];
+    if (typeof av === 'string') return dir * av.localeCompare(bv);
+    return dir * (av - bv);
+  });
+
+  // Update sort indicators
+  ['client','spend','revenue','roas','days'].forEach(f => {
+    const el = document.getElementById('ts-' + f);
+    if (el) el.textContent = field === f ? (dir === -1 ? '↓' : '↑') : '↕';
+  });
+
+  const totalPages = Math.ceil(arr.length / PAGE_SIZE) || 1;
+  if (campaignPage > totalPages) campaignPage = totalPages;
+  const start = (campaignPage - 1) * PAGE_SIZE;
+  const slice = arr.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('campaignTableMeta').textContent =
+    `${arr.length.toLocaleString()} campaigns · showing ${start+1}–${Math.min(start+PAGE_SIZE, arr.length)}`;
+
+  document.getElementById('campaignTableBody').innerHTML = arr.length === 0
+    ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);">No campaigns match the current filters</td></tr>`
+    : slice.map(c => `
+      <tr>
+        <td style="font-weight:600;color:var(--ink);">${c.client}</td>
+        <td class="desc-td"><span class="ellip" title="${c.campaign.replace(/"/g,'&quot;')}">${c.campaign || '<em style="color:var(--muted)">—</em>'}</span></td>
+        <td><span class="badge ${regionBadge(c.region)}">${c.region}</span></td>
+        <td><span class="badge ${objectiveBadge(c.objective)}">${c.objective}</span></td>
+        <td class="num">${fmtMoneyFull(c.spend)}</td>
+        <td class="num">${fmtMoneyFull(c.revenue)}</td>
+        <td class="num roas ${roasClass(c.roas, c.spend)}">${c.spend === 0 ? '—' : c.roas.toFixed(2) + 'x'}</td>
+        <td class="num" style="color:var(--muted);">${c.days}</td>
+      </tr>`).join('');
+
+  // Pager
+  const pageInfo = document.getElementById('pageInfo');
+  pageInfo.innerHTML = arr.length === 0 ? '' : `Page <strong>${campaignPage}</strong> of <strong>${totalPages}</strong>`;
+  const pager = document.getElementById('pager');
+  if (totalPages <= 1){ pager.innerHTML = ''; return; }
+  let html = `<button onclick="gotoPage(1)" ${campaignPage===1?'disabled':''}>‹‹</button>`;
+  html += `<button onclick="gotoPage(${campaignPage-1})" ${campaignPage===1?'disabled':''}>‹</button>`;
+  // 5 page buttons centered around current
+  let s = Math.max(1, campaignPage - 2);
+  let e = Math.min(totalPages, s + 4);
+  s = Math.max(1, e - 4);
+  for (let p = s; p <= e; p++){
+    html += `<button class="${p===campaignPage?'active':''}" onclick="gotoPage(${p})">${p}</button>`;
+  }
+  html += `<button onclick="gotoPage(${campaignPage+1})" ${campaignPage===totalPages?'disabled':''}>›</button>`;
+  html += `<button onclick="gotoPage(${totalPages})" ${campaignPage===totalPages?'disabled':''}>››</button>`;
+  pager.innerHTML = html;
+}
+
+function gotoPage(p){
+  campaignPage = p;
+  renderCampaignTable(getFiltered());
+}
+
+function sortByCampaign(field){
+  if (campaignSort.field === field) campaignSort.dir *= -1;
+  else { campaignSort.field = field; campaignSort.dir = -1; }
+  campaignPage = 1;
+  renderCampaignTable(getFiltered());
+}
+
+function renderRecs(data){
+  if (!data.length){ document.getElementById('recs').innerHTML = ''; return; }
+  const spend = data.reduce((s,r) => s + r.cost, 0);
+  const revenue = data.reduce((s,r) => s + r.revenue, 0);
+  const roas = spend > 0 ? revenue/spend : 0;
+
+  // Aggregate
+  const byCampaign = {};
+  data.forEach(r => {
+    const k = r.client + '||' + r.campaign;
+    if (!byCampaign[k]) byCampaign[k] = { client: r.client, campaign: r.campaign, spend: 0, revenue: 0 };
+    byCampaign[k].spend += r.cost;
+    byCampaign[k].revenue += r.revenue;
+  });
+  const camps = Object.values(byCampaign).map(c => ({ ...c, roas: c.spend>0?c.revenue/c.spend:0 }));
+  const wasted = camps.filter(c => c.spend > 20 && c.revenue === 0);
+  const wastedTotal = wasted.reduce((s,c) => s + c.spend, 0);
+
+  // Dedupe top performers by client (best campaign per client) — otherwise the same client dominates the list
+  const bestByClient = {};
+  camps.filter(c => c.spend >= 50).forEach(c => {
+    if (!bestByClient[c.client] || c.roas > bestByClient[c.client].roas) bestByClient[c.client] = c;
+  });
+  const top = Object.values(bestByClient).sort((a,b) => b.roas - a.roas).slice(0,3);
+
+  // Underperformers — also dedupe by client (show worst campaign per client)
+  const worstByClient = {};
+  camps.filter(c => c.spend >= 50 && c.roas < 1).forEach(c => {
+    if (!worstByClient[c.client] || c.spend > worstByClient[c.client].spend) worstByClient[c.client] = c;
+  });
+  const under = camps.filter(c => c.spend >= 50 && c.roas < 1).sort((a,b) => b.spend - a.spend);
+  const underClients = Object.values(worstByClient).sort((a,b) => b.spend - a.spend);
+  const underTotal = under.reduce((s,c) => s + c.spend, 0);
+
+  // By client concentration
+  const byClient = {};
+  data.forEach(r => { byClient[r.client] = (byClient[r.client]||0) + r.cost; });
+  const clientArr = Object.entries(byClient).sort((a,b) => b[1] - a[1]);
+  const topClient = clientArr[0];
+  const topShare = topClient ? (topClient[1]/spend*100) : 0;
+
+  const recs = [];
+  if (wastedTotal > 100){
+    recs.push(`<strong>Cut or fix the ${wasted.length} zero-revenue campaigns.</strong> They've absorbed <strong>${fmtMoneyFull(wastedTotal)}</strong> (${(wastedTotal/spend*100).toFixed(1)}% of spend) without recording a single FB-attributed sale. Either pause them or audit the conversion tracking — some may be working but mis-attributed.`);
+  }
+  if (top.length > 0){
+    recs.push(`<strong>Scale the top performers.</strong> ${top.map(c => `<strong>${c.client}</strong> (${c.roas.toFixed(1)}x)`).join(', ')} are the most efficient campaigns ≥$50 spend. Test raising their budgets by 20–30% and monitor whether ROAS holds.`);
+  }
+  if (under.length > 0){
+    const uniqueClients = [...new Set(under.map(c => c.client))];
+    recs.push(`<strong>Review the ${under.length} below-breakeven campaigns.</strong> They've spent <strong>${fmtMoneyFull(underTotal)}</strong> at sub-1x ROAS — concentrated on ${uniqueClients.slice(0,2).map(n => `<strong>${n}</strong>`).join(' and ')}${uniqueClients.length > 2 ? ` (and ${uniqueClients.length - 2} other${uniqueClients.length === 3 ? '' : 's'})` : ''}. Refresh creative, tighten audiences, or move budget to the top performers above.`);
+  }
+  if (topShare > 40){
+    recs.push(`<strong>Diversify away from concentration risk.</strong> <strong>${topClient[0]}</strong> accounts for <strong>${topShare.toFixed(0)}%</strong> of total spend. If their performance dips, the whole portfolio moves with it. Build the smaller accounts up.`);
+  }
+  if (roas < 1.5 && roas > 0){
+    recs.push(`<strong>Blended ROAS is light at ${roas.toFixed(2)}x.</strong> Healthy retail Meta benchmarks sit in the 2–4x range. The biggest unlock is usually killing the bottom quartile of campaigns and reallocating to the top quartile — don't average down with under-performers.`);
+  }
+  if (recs.length === 0){
+    recs.push(`<strong>Performance is healthy across the board.</strong> Keep monitoring weekly and watch for creative fatigue on top performers — even strong campaigns typically degrade after 4–6 weeks.`);
+  }
+
+  document.getElementById('recs').innerHTML = recs.map((r,i) => `
+    <div class="rec"><div class="rec-n">${String(i+1).padStart(2,'0')}</div><div>${r}</div></div>
+  `).join('');
+}
+
+// =============================================================================
+// EXPORT
+// =============================================================================
+function exportCSV(){
+  const data = getFiltered();
+  const byC = {};
+  data.forEach(r => {
+    const k = r.client + '||' + r.campaign;
+    if (!byC[k]) byC[k] = { client: r.client, account: r.account, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, days: new Set() };
+    byC[k].spend += r.cost; byC[k].revenue += r.revenue; byC[k].days.add(r.d.toISOString().slice(0,10));
+  });
+  const rows = Object.values(byC).map(c => ({ ...c, days: c.days.size, roas: c.spend>0?c.revenue/c.spend:0 }));
+  rows.sort((a,b) => b.spend - a.spend);
+
+  const headers = ['Client','Account','Campaign','Region','Objective','Spend','Revenue','ROAS','Days'];
+  const lines = [headers.join(',')];
+  rows.forEach(r => {
+    lines.push([r.client, r.account, r.campaign, r.region, r.objective, r.spend.toFixed(2), r.revenue.toFixed(2), r.roas.toFixed(4), r.days]
+      .map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `social-budget-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// =============================================================================
+// EVENT WIRING
+// =============================================================================
+document.getElementById('refreshBtn').addEventListener('click', loadData);
+document.getElementById('exportBtn').addEventListener('click', exportCSV);
+
+document.querySelectorAll('#rangeTabs .tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#rangeTabs .tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const v = btn.dataset.range;
+    const customWrap = document.getElementById('customRange');
+    if (v === 'custom'){
+      customWrap.hidden = false;
+      // Pre-fill with current range
+      const { from, to } = getDateRange();
+      if (from) document.getElementById('customFrom').value = from.toISOString().slice(0,10);
+      if (to) document.getElementById('customTo').value = to.toISOString().slice(0,10);
+      // Don't change range yet — wait for user to click Apply
+      return;
+    }
+    customWrap.hidden = true;
+    currentRange = v === 'all' ? 'all' : parseInt(v, 10);
+    campaignPage = 1;
+    syncURL();
+    renderAll();
+  });
+});
+
+// Search input with debounce
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    filters.search = e.target.value.trim();
+    campaignPage = 1;
+    updateChipStates();
+    syncURL();
+    renderAll();
+  }, 200);
+});
+
+// Update toggleFilter / clearFilters to sync URL (handled inline in those functions)
+
+// =============================================================================
+// URL STATE PERSISTENCE — encode filters & range in URL hash so views are shareable
+// =============================================================================
+function syncURL(){
+  const params = new URLSearchParams();
+  if (currentRange !== 90) params.set('range', currentRange);
+  if (currentRange === 'custom' && customFrom && customTo){
+    params.set('from', customFrom.toISOString().slice(0,10));
+    params.set('to', customTo.toISOString().slice(0,10));
+  }
+  if (filters.clients.size) params.set('clients', [...filters.clients].join('|'));
+  if (filters.regions.size) params.set('regions', [...filters.regions].join('|'));
+  if (filters.objectives.size) params.set('objectives', [...filters.objectives].join('|'));
+  if (filters.search) params.set('q', filters.search);
+  const newHash = params.toString();
+  try { history.replaceState(null, '', newHash ? '#' + newHash : location.pathname + location.search); } catch(e){}
+}
+
+function loadURLState(){
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+  const params = new URLSearchParams(hash);
+  const range = params.get('range');
+  if (range){
+    if (range === 'all' || range === 'custom') currentRange = range;
+    else { const n = parseInt(range, 10); if (!isNaN(n)) currentRange = n; }
+  }
+  if (currentRange === 'custom'){
+    const f = params.get('from'), t = params.get('to');
+    if (f) customFrom = new Date(f + 'T00:00:00');
+    if (t) customTo = new Date(t + 'T23:59:59');
+  }
+  ['clients','regions','objectives'].forEach(g => {
+    const v = params.get(g);
+    if (v) v.split('|').forEach(x => filters[g].add(x));
+  });
+  const q = params.get('q');
+  if (q){ filters.search = q; document.getElementById('searchInput').value = q; }
+
+  // Reflect in UI
+  document.querySelectorAll('#rangeTabs .tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.range === String(currentRange));
+  });
+  if (currentRange === 'custom'){
+    document.getElementById('customRange').hidden = false;
+    if (customFrom) document.getElementById('customFrom').value = customFrom.toISOString().slice(0,10);
+    if (customTo) document.getElementById('customTo').value = customTo.toISOString().slice(0,10);
+  }
+  updateChipStates();
+}
+
+// =============================================================================
+// CHAT WITH DATA — Bifrost integration
+// =============================================================================
+const CHAT_ENDPOINT = '/.netlify/functions/chat';     // proxy (preferred, keeps key server-side)
+const CHAT_MODEL = 'anthropic/claude-sonnet-4-6';     // default model per Bifrost catalog
+let chatHistory = [];        // [{role,content}]
+let chatBusy = false;
+let chatProxyAvailable = null;  // null=unknown, true=use proxy, false=use direct
+let chatDirectKey = null;       // in-memory only, never persisted
+
+function openChat(){
+  const panel = document.getElementById('chatPanel');
+  panel.hidden = false;
+  // Force reflow for transition
+  void panel.offsetWidth;
+  panel.classList.add('open');
+  setTimeout(() => document.getElementById('chatInput').focus(), 300);
+}
+function closeChat(){
+  const panel = document.getElementById('chatPanel');
+  panel.classList.remove('open');
+  setTimeout(() => { panel.hidden = true; }, 280);
+}
+
+function askQuestion(q){
+  document.getElementById('chatInput').value = q;
+  sendMessage();
+}
+
+// Build a compact data context for the LLM — enough to reason, not so much it bloats tokens
+function buildDataContext(){
+  const data = getFiltered();
+  const { from, to } = getDateRange();
+  if (!data.length) return { error: 'No data in current view' };
+
+  const spend = data.reduce((s,r) => s + r.cost, 0);
+  const revenue = data.reduce((s,r) => s + r.revenue, 0);
+
+  // By client
+  const byClient = {};
+  data.forEach(r => {
+    if (!byClient[r.client]) byClient[r.client] = { client: r.client, spend: 0, revenue: 0, campaigns: new Set(), regions: new Set() };
+    byClient[r.client].spend += r.cost;
+    byClient[r.client].revenue += r.revenue;
+    byClient[r.client].campaigns.add(r.campaign);
+    byClient[r.client].regions.add(r.region);
+  });
+  const clientArr = Object.values(byClient).map(c => ({
+    client: c.client, regions: [...c.regions],
+    spend: Math.round(c.spend), revenue: Math.round(c.revenue),
+    roas: c.spend > 0 ? +(c.revenue/c.spend).toFixed(2) : 0,
+    campaigns: c.campaigns.size,
+    spend_share_pct: +(c.spend/spend*100).toFixed(1),
+  })).sort((a,b) => b.spend - a.spend);
+
+  // By campaign
+  const byCamp = {};
+  data.forEach(r => {
+    const k = r.client + '||' + r.campaign;
+    if (!byCamp[k]) byCamp[k] = { client: r.client, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0 };
+    byCamp[k].spend += r.cost;
+    byCamp[k].revenue += r.revenue;
+  });
+  const campArr = Object.values(byCamp).map(c => ({
+    client: c.client, campaign: c.campaign, region: c.region, objective: c.objective,
+    spend: Math.round(c.spend), revenue: Math.round(c.revenue),
+    roas: c.spend > 0 ? +(c.revenue/c.spend).toFixed(2) : 0,
+  }));
+
+  return {
+    view: {
+      date_from: from.toISOString().slice(0,10),
+      date_to: to.toISOString().slice(0,10),
+      days: Math.round((to - from)/86400000) + 1,
+      filters_applied: {
+        clients: [...filters.clients],
+        regions: [...filters.regions],
+        objectives: [...filters.objectives],
+        search: filters.search || null,
+      },
+    },
+    totals: {
+      spend: Math.round(spend), revenue: Math.round(revenue),
+      blended_roas: spend > 0 ? +(revenue/spend).toFixed(2) : 0,
+      campaigns: campArr.length, clients: clientArr.length,
+      net_contribution: Math.round(revenue - spend),
+    },
+    by_client_top20: clientArr.slice(0, 20),
+    top_spend_campaigns: [...campArr].sort((a,b) => b.spend - a.spend).slice(0, 15),
+    top_roas_campaigns: campArr.filter(c => c.spend >= 50).sort((a,b) => b.roas - a.roas).slice(0, 10),
+    underperformers: campArr.filter(c => c.spend >= 50 && c.roas < 1).sort((a,b) => b.spend - a.spend).slice(0, 15),
+    wasted_spend_campaigns: campArr.filter(c => c.spend > 20 && c.revenue === 0).sort((a,b) => b.spend - a.spend).slice(0, 15),
+  };
+}
+
+function buildSystemPrompt(){
+  const ctx = buildDataContext();
+  return `You are a Meta Ads performance analyst working at Pattern, a digital marketing agency in Australia and New Zealand. You help the user understand their Social Budget dashboard data.
+
+The user's CURRENT filtered view is provided as JSON below. Use ONLY these numbers — do not invent figures. If the user asks about something not in this data (a different date range, a client that's not visible, or detail beyond the top-N lists), tell them which filter or time range to adjust to see it.
+
+\`\`\`json
+${JSON.stringify(ctx, null, 2)}
+\`\`\`
+
+Style:
+- Confident, expert, direct. No hedging preamble like "Great question!". Lead with the answer.
+- Quote specific dollar amounts and ROAS multiples from the data. Format money as $1.2K / $1.2M, ROAS as 2.5x.
+- Keep responses to 3-6 sentences for most questions. If asked for a list or summary, use Markdown bullets.
+- When recommending action, be specific: which client, which campaign, what change, what to monitor next.
+- You're talking to a Pattern analyst, not a client — speak plainly. No marketing jargon. No "leverage", "synergies", "best-in-class".
+- If asked for a Slack-ready or email update, format it ready to paste — no quotation marks around the whole thing, just the message itself.`;
+}
+
+function appendMessage(role, content){
+  const list = document.getElementById('chatMessages');
+  // Remove empty state on first message
+  const empty = list.querySelector('.chat-empty');
+  if (empty) empty.remove();
+
+  const msg = document.createElement('div');
+  msg.className = 'chat-msg ' + role;
+  msg.innerHTML = `<div class="chat-bubble">${role === 'user' ? escapeHTML(content) : renderMarkdown(content)}</div>`;
+  list.appendChild(msg);
+  list.scrollTop = list.scrollHeight;
+}
+
+function appendTyping(){
+  const list = document.getElementById('chatMessages');
+  const t = document.createElement('div');
+  t.className = 'chat-typing';
+  t.id = 'chatTyping';
+  t.innerHTML = '<span></span><span></span><span></span>';
+  list.appendChild(t);
+  list.scrollTop = list.scrollHeight;
+}
+
+function removeTyping(){
+  const t = document.getElementById('chatTyping');
+  if (t) t.remove();
+}
+
+function escapeHTML(s){
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+// Lightweight Markdown renderer — bold, italic, code, lists, line breaks
+function renderMarkdown(text){
+  if (!text) return '';
+  let html = escapeHTML(text);
+  // Code blocks ``` ... ```
+  html = html.replace(/```([\s\S]*?)```/g, (_,c) => `<pre style="background:rgba(0,0,0,0.04);padding:8px 10px;border-radius:6px;overflow-x:auto;font-family:var(--font-mono);font-size:12px;margin:6px 0;">${c.trim()}</pre>`);
+  // Inline code `x`
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold **x**
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic *x* (avoid matching ** by requiring non-* boundary)
+  html = html.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+  // Lists: lines starting with - or *
+  const lines = html.split('\n');
+  let out = [], inList = false, listType = null;
+  for (let line of lines){
+    const ulMatch = line.match(/^[\s]*[-*]\s+(.*)/);
+    const olMatch = line.match(/^[\s]*\d+\.\s+(.*)/);
+    if (ulMatch){
+      if (!inList || listType !== 'ul'){ if (inList) out.push(`</${listType}>`); out.push('<ul>'); inList = true; listType = 'ul'; }
+      out.push(`<li>${ulMatch[1]}</li>`);
+    } else if (olMatch){
+      if (!inList || listType !== 'ol'){ if (inList) out.push(`</${listType}>`); out.push('<ol>'); inList = true; listType = 'ol'; }
+      out.push(`<li>${olMatch[1]}</li>`);
+    } else {
+      if (inList){ out.push(`</${listType}>`); inList = false; listType = null; }
+      out.push(line);
+    }
+  }
+  if (inList) out.push(`</${listType}>`);
+  return out.join('\n').replace(/\n\n+/g, '</p><p>').replace(/^/, '<p>').replace(/$/, '</p>').replace(/<p>\s*<\/p>/g, '');
+}
+
+async function sendMessage(){
+  if (chatBusy) return;
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  appendMessage('user', text);
+  chatHistory.push({ role: 'user', content: text });
+
+  chatBusy = true;
+  document.getElementById('chatSend').disabled = true;
+  document.getElementById('chatStatus').textContent = 'Thinking…';
+  appendTyping();
+
+  try {
+    const response = await callBifrost();
+    removeTyping();
+    appendMessage('assistant', response);
+    chatHistory.push({ role: 'assistant', content: response });
+    document.getElementById('chatStatus').textContent = '';
+  } catch (err) {
+    removeTyping();
+    appendMessage('error', err.message);
+    document.getElementById('chatStatus').textContent = '';
+    document.getElementById('chatStatus').className = 'chat-status error';
+  } finally {
+    chatBusy = false;
+    document.getElementById('chatSend').disabled = false;
+  }
+}
+
+async function callBifrost(){
+  const messages = [
+    { role: 'system', content: buildSystemPrompt() },
+    ...chatHistory,
+  ];
+
+  // Strategy: try the Netlify proxy first (keeps key server-side). If 404/network fail,
+  // prompt user for a key in-memory and call Bifrost directly.
+  if (chatProxyAvailable !== false){
+    try {
+      const res = await fetch(CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, model: CHAT_MODEL, max_tokens: 1500 }),
+      });
+      if (res.ok){
+        chatProxyAvailable = true;
+        const data = await res.json();
+        if (data.choices && data.choices[0]) return data.choices[0].message.content;
+        throw new Error('Unexpected response shape from proxy');
+      }
+      if (res.status === 404){
+        chatProxyAvailable = false;
+        // fall through to direct
+      } else {
+        const errText = await res.text();
+        let parsed; try { parsed = JSON.parse(errText); } catch(e){}
+        throw new Error('Proxy: ' + (parsed?.error || errText.slice(0, 200)));
+      }
+    } catch (err) {
+      if (chatProxyAvailable === true) throw err;
+      // Network error on first try — assume no proxy, try direct
+      chatProxyAvailable = false;
+    }
+  }
+
+  // Direct call to Bifrost (requires API key)
+  if (!chatDirectKey){
+    chatDirectKey = prompt('No proxy detected.\n\nEnter your Bifrost API key for this session (held in memory only, never saved).\n\nFor production, deploy the Netlify function and set BIFROST_API_KEY in Netlify env vars — see README.');
+    if (!chatDirectKey) throw new Error('API key required — cancel');
+  }
+  const res = await fetch('https://bifrost.pattern.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${chatDirectKey}`,
+    },
+    body: JSON.stringify({ model: CHAT_MODEL, messages, max_tokens: 1500 }),
+  });
+  if (!res.ok){
+    const t = await res.text();
+    if (res.status === 401 || res.status === 403){
+      chatDirectKey = null;  // wipe bad key
+      throw new Error('Bifrost rejected the API key. Try again.');
+    }
+    throw new Error('Bifrost: ' + res.status + ' — ' + t.slice(0, 200));
+  }
+  const data = await res.json();
+  if (data.choices && data.choices[0]) return data.choices[0].message.content;
+  throw new Error('Unexpected response shape from Bifrost');
+}
+
+// Chat keyboard handling
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendMessage();
+  }
+});
+// Auto-resize textarea
+document.getElementById('chatInput').addEventListener('input', e => {
+  e.target.style.height = 'auto';
+  e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+});
+// Close on ESC
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('chatPanel').hidden) closeChat();
+});
+
+// Initial load
+loadData();
+</script>
+</body>
+</html>

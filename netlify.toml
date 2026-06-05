@@ -1,0 +1,27 @@
+# netlify.toml
+#
+# This site is a static HTML dashboard with one serverless function (the
+# Bifrost proxy for the chat feature). No build step needed.
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Default Node runtime for functions
+[functions]
+  node_bundler = "esbuild"
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Long cache for static assets, none for HTML
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
