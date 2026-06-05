@@ -172,6 +172,8 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
 .b-au{background:rgba(0,155,255,0.10);color:#0077c0;}
 .b-nz{background:rgba(34,163,107,0.10);color:#177a4f;}
 .b-us{background:rgba(224,145,60,0.12);color:#a35c1d;}
+.b-uk{background:rgba(58,85,255,0.10);color:#2c43e0;}
+.b-de{background:rgba(220,42,92,0.10);color:#b8336c;}
 .b-anz{background:rgba(119,11,255,0.10);color:#5a08c2;}
 .b-obj-ret{background:rgba(0,150,250,0.10);color:#0077c0;}
 .b-obj-pros{background:rgba(119,11,255,0.10);color:#5a08c2;}
@@ -303,6 +305,30 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
   .chat-fab{padding:14px;}
 }
 
+/* GA4 columns (Task 2) — hidden unless the active feed carries GA4 data */
+.ga4-col{display:none;}
+body.has-ga4 .ga4-col{display:table-cell;}
+.ga4-legend{display:none;}
+body.has-ga4 .ga4-legend{display:flex;}
+
+/* ============== BUDGET PACING (Task 3) ============== */
+.pacing-toggle{display:flex;align-items:center;gap:6px;}
+.pacing-toggle-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-right:2px;}
+.pacing-btn{font-family:var(--font-display);font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all .12s;}
+.pacing-btn:hover{border-color:var(--blue-bright);color:var(--blue-bright);}
+.pacing-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.pacing-row{padding:11px 0;border-bottom:1px dashed var(--line);}
+.pacing-row:last-child{border-bottom:none;}
+.pacing-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:5px;}
+.pacing-name{font-size:13px;font-weight:600;color:var(--ink);}
+.pacing-budget{font-family:var(--font-mono);font-size:11px;color:var(--muted);flex-shrink:0;}
+.pacing-track{position:relative;background:var(--subtle);border-radius:4px;height:9px;overflow:hidden;margin:5px 0;}
+.pacing-fill{height:100%;border-radius:4px;transition:width .4s ease-out;}
+.pacing-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.5;}
+.pacing-foot{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted);font-family:var(--font-mono);flex-wrap:wrap;}
+.pacing-status{font-weight:700;text-transform:capitalize;}
+.pacing-caption{font-size:10.5px;color:var(--dim);margin-top:14px;}
+
 /* Hide chat panel until JS runs */
 [hidden]{display:none !important;}
 
@@ -398,6 +424,23 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
     <!-- EXECUTIVE SUMMARY -->
     <div class="callout" id="summary"></div>
 
+    <!-- BUDGET PACING (current calendar month — independent of the time tabs) -->
+    <div id="pacingSection" hidden>
+      <div class="section-header">
+        <div class="section-title">Budget pacing — <em>this month</em></div>
+        <div class="pacing-toggle">
+          <span class="pacing-toggle-label">Pace against</span>
+          <button class="pacing-btn" id="pacingOriginal" onclick="setPacingMode('original')">Original</button>
+          <button class="pacing-btn active" id="pacingRevised" onclick="setPacingMode('revised')">Revised</button>
+        </div>
+      </div>
+      <div class="metric-grid" id="pacingKpis" style="grid-template-columns:repeat(3,1fr);"></div>
+      <div class="card" style="margin-bottom:22px;">
+        <div id="pacingRows"></div>
+        <div class="pacing-caption" id="pacingCaption"></div>
+      </div>
+    </div>
+
     <!-- FILTERS -->
     <div class="filters-panel" id="filtersPanel">
       <div class="filter-group">
@@ -428,6 +471,7 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
           <span class="legend-item"><span class="legend-dot" style="background:var(--blue-bright)"></span>Spend</span>
           <span class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span>FB Revenue</span>
           <span class="legend-item"><span class="legend-dot" style="background:var(--pos);border-radius:50%;"></span>ROAS</span>
+          <span class="legend-item ga4-legend"><span class="legend-dot" style="background:var(--warn);border-radius:50%;"></span>GA4 ROAS</span>
         </div>
         <div style="position:relative;height:280px;"><canvas id="dailyChart"></canvas></div>
       </div>
@@ -485,6 +529,8 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
               <th class="num" onclick="sortByClient('spend')">Spend <span class="sort-icon" id="cs-spend">↓</span></th>
               <th class="num" onclick="sortByClient('revenue')">FB Revenue <span class="sort-icon" id="cs-revenue">↕</span></th>
               <th class="num" onclick="sortByClient('roas')">FB ROAS <span class="sort-icon" id="cs-roas">↕</span></th>
+              <th class="num no-sort ga4-col">GA4 Revenue</th>
+              <th class="num no-sort ga4-col">GA4 ROAS</th>
               <th class="num" onclick="sortByClient('campaigns')">Campaigns <span class="sort-icon" id="cs-campaigns">↕</span></th>
               <th class="num" onclick="sortByClient('share')">Share <span class="sort-icon" id="cs-share">↕</span></th>
             </tr>
@@ -513,6 +559,8 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
               <th class="num" onclick="sortByCampaign('spend')">Spend <span class="sort-icon" id="ts-spend">↓</span></th>
               <th class="num" onclick="sortByCampaign('revenue')">Revenue <span class="sort-icon" id="ts-revenue">↕</span></th>
               <th class="num" onclick="sortByCampaign('roas')">ROAS <span class="sort-icon" id="ts-roas">↕</span></th>
+              <th class="num no-sort ga4-col">GA4 Revenue</th>
+              <th class="num no-sort ga4-col">GA4 ROAS</th>
               <th class="num" onclick="sortByCampaign('days')">Days <span class="sort-icon" id="ts-days">↕</span></th>
             </tr>
           </thead>
@@ -613,6 +661,15 @@ const PUB_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT-eN2NO8xpsyu
 const GID_FB = 131056311;          // "Facebook Revenue Sheet"
 const GID_CLIENT = 220651307;      // "Client Overview"
 
+// --- New tabs (Tasks 1/2/3) ---------------------------------------------------
+// IMPORTRANGE mirror tabs published from the same master sheet (same PUB_BASE).
+// Paste each tab's published GID below. Leave null/'' to no-op that feature
+// cleanly (the dashboard then behaves exactly as before). Find a GID in the
+// tab's "Publish to web → CSV" URL (the gid= value).
+const GID_MAPPING  = null;   // "Client Mapping (Import)"    — deterministic account→client lookup (Task 1)
+const GID_BUDGET   = null;   // "Budget Tracker (Import)"    — current-month budgets for pacing (Task 3)
+const GID_FEED_GA4 = null;   // "Campaign Feed GA4 (Import)" — campaign-day feed WITH GA4 LC columns (Task 2). Blank = keep FB feed, Meta-only.
+
 const csvUrl = gid => `${PUB_BASE}?output=csv&single=true&gid=${gid}&t=${Date.now()}`;
 
 // =============================================================================
@@ -647,6 +704,24 @@ const parseMoney = s => {
   return isFinite(v) ? v : 0;
 };
 
+// Spreadsheet / IMPORTRANGE transient & error strings — treat all as "no value".
+// Covers mid-refresh ("Loading...") and broken-link states (#REF!, #N/A, #ERROR!,
+// #DIV/0!, #VALUE!, #NAME?) so we never parseFloat them and never crash the page.
+const isTransientCell = s => {
+  const t = String(s == null ? '' : s).trim();
+  return t === '' || t.toLowerCase() === 'loading...' || /^#(ref|n\/a|error|div\/0|value|name|num|null)/i.test(t);
+};
+// Numeric coercion that returns null for blank/transient/error cells (vs 0).
+const excelNum = s => {
+  if (isTransientCell(s)) return null;
+  const v = parseFloat(String(s).replace(/[$,%\s]/g,''));
+  return isFinite(v) ? v : null;
+};
+
+// True when a parsed CSV has no real content — every cell blank/transient.
+// Lets a whole IMPORTRANGE tab in a "Loading.../#REF!" state no-op silently.
+const tabLooksEmpty = rows => !rows.length || rows.every(r => r.every(isTransientCell));
+
 const parseISODate = s => {
   if (!s) return null;
   // "2026-01-01" format
@@ -670,6 +745,8 @@ function getRegion(account, campaign){
   const t = ((account||'') + ' ' + (campaign||'')).toUpperCase();
   if (/\| NZ |NZ \||-NZ-|NEW ZEALAND|WESTGATE|PURE NEW ZEALAND/.test(t)) return 'NZ';
   if (/\bUSA?\b|AMERICA|HELEN KAMINSKI USA/.test(t)) return 'US';
+  if (/\bUK\b|UNITED KINGDOM|\bGB\b|BRITAIN/.test(t)) return 'UK';
+  if (/\bDE\b|GERMANY|DEUTSCHLAND/.test(t)) return 'DE';
   if (/AU\+NZ|AU \+ NZ|\bANZ\b/.test(t)) return 'ANZ';
   return 'AU';
 }
@@ -709,10 +786,262 @@ function roasClass(roas, spend){
 }
 
 // =============================================================================
+// CLIENT MAPPING (Task 1) — deterministic account→client lookup
+// Built from the "Client Mapping" tab (cols: Client Name, Meta/TikTok Ad Account,
+// GA4 Property Name). An ad account that legitimately serves several clients that
+// differ only by region (e.g. Sting AU/US/UK/DE on one Meta account) is keyed on
+// account+'|'+region so each region's spend resolves to the right client.
+// =============================================================================
+function buildMapping(text){
+  mapAcctRegion = {};
+  mapAcctSingle = {};
+  if (!text) return;                       // GID not set / 404 → legacy behaviour
+  const rows = parseCSV(text);
+  if (tabLooksEmpty(rows)) return;         // whole tab blank / IMPORTRANGE transient → silent no-op
+  const hdr = rows[0].map(h => (h||'').toLowerCase().trim());
+  const find = re => hdr.findIndex(h => re.test(h));
+  const iClient = find(/client/);
+  const iAcc    = find(/ad account|account/);
+  const iRegion = find(/region/);          // optional explicit region column
+  if (iClient < 0 || iAcc < 0){ console.warn('[mapping] could not locate Client / Ad Account columns — keeping legacy mapping'); return; }
+
+  // account → [{client, region}]
+  const acctClients = {};
+  for (let i = 1; i < rows.length; i++){
+    const r = rows[i];
+    const client = (r[iClient]||'').replace(/\s+/g,' ').trim();
+    const acc    = (r[iAcc]||'').replace(/\s+/g,' ').trim();
+    if (!client || !acc || isTransientCell(client) || isTransientCell(acc)) continue;  // skip blanks / IMPORTRANGE transients
+    let region = iRegion >= 0 ? (r[iRegion]||'').trim().toUpperCase() : '';
+    if (!region || isTransientCell(region)) region = getRegion(client, acc);  // client name carries the AU/US/UK/DE suffix
+    (acctClients[acc] = acctClients[acc] || []).push({ client, region });
+  }
+
+  Object.entries(acctClients).forEach(([acc, list]) => {
+    if (list.length === 1) mapAcctSingle[acc] = list[0].client;   // unambiguous plain-account fallback
+    const byRegion = {};
+    list.forEach(x => { (byRegion[x.region] = byRegion[x.region] || []).push(x.client); });
+    Object.entries(byRegion).forEach(([region, clients]) => {
+      if (clients.length > 1)
+        console.warn(`[mapping] account "${acc}" maps to ${clients.length} clients in region ${region}: ${clients.join(', ')} — using first`);
+      mapAcctRegion[acc + '|' + region] = clients[0];
+    });
+  });
+}
+
+// Resolve a feed row's display client. Order: account+region → account (single)
+//  → Client Overview legacy map → cleanup of the raw account name.
+function resolveClient(account, region){
+  if ((account + '|' + region) in mapAcctRegion) return mapAcctRegion[account + '|' + region];
+  if (account in mapAcctSingle) return mapAcctSingle[account];
+  if (accountToClient[account]) return accountToClient[account];
+  return account.replace(/^(AU|NZ|US)\s*\|\s*/,'').replace(/Ad Account$/,'').trim();
+}
+
+// =============================================================================
+// GA4 CAMPAIGN FEED (Task 2) — "Campaign Feed GA4 (Import)"
+// Columns (header-detected): Date, Month, Meta Ads Account, Campaign, Region,
+// Spends, Meta Ads Revenue, Facebook ROAS, LC Revenue (GA4), LC ROAS.
+// Returns the same row shape as the FB feed plus a `lcRevenue` field, or null
+// if the tab is unusable (absent, empty, or all IMPORTRANGE transients).
+// =============================================================================
+function parseGA4Feed(text){
+  if (!text) return null;
+  const rows = parseCSV(text);
+  if (rows.length < 2) return null;
+  const hdr = rows[0].map(h => (h||'').toLowerCase().trim());
+  const find = (re, fb) => { const i = hdr.findIndex(h => re.test(h)); return i >= 0 ? i : fb; };
+  const iDate = find(/date/, 0), iAcc = find(/account/, 2), iCamp = find(/campaign/, 3),
+        iCost = find(/spend|cost/, 5), iRev = find(/meta ads revenue|conversion value/, 6),
+        iLC   = find(/lc revenue|ga4/, 8);
+  const out = [];
+  for (let i = 1; i < rows.length; i++){
+    const r = rows[i];
+    if (!r[iDate] || isTransientCell(r[iDate])) continue;       // blank trailing / transient rows
+    const d = parseISODate(r[iDate]); if (!d) continue;
+    const account = (r[iAcc]||'').trim(); if (!account || isTransientCell(account)) continue;
+    const campaign = (r[iCamp]||'').trim();
+    const region = getRegion(account, campaign);
+    out.push({
+      d, account, campaign,
+      cost: parseMoney(r[iCost]),
+      revenue: parseMoney(r[iRev]),
+      lcRevenue: iLC >= 0 ? parseMoney(r[iLC]) : 0,
+      region,
+      objective: getObjective(campaign),
+      client: resolveClient(account, region),
+    });
+  }
+  return out.length ? out : null;
+}
+
+// =============================================================================
+// BUDGET PACING (Task 3) — "Budget Tracker (Import)"
+// =============================================================================
+// Known label bridges that normalisation can't infer on its own. Add an entry
+// here when a tracker client label and the feed's client label don't collapse
+// to the same key automatically (key/value are both already-normalised tokens).
+const CLIENT_ALIASES = {
+  // 'helen kaminski': 'helen kaminski',   // example placeholder — extend as needed
+};
+
+// Collapse a client label (tracker OR dashboard) to a join key: drop embedded
+// newlines, region tokens/joiners and platform suffixes, lower-case. So
+// "STING AU + US + UK + DE" and "Sting AU"/"Sting US" both → "sting", and
+// "Converse AU + NZ" and "Converse Meta" both → "converse".
+function normalizeClientKey(name){
+  if (!name) return '';
+  let s = String(name).replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+  s = s.replace(/[+&/,]/g,' ');                            // region joiners
+  s = s.replace(/\b(au|nz|us|usa|uk|gb|de|anz)\b/g,' ');   // region tokens
+  s = s.replace(/\b(meta|tiktok|facebook|fb)\b/g,' ');     // platform tokens the dashboard appends
+  s = s.replace(/\s+/g,' ').trim();
+  return CLIENT_ALIASES[s] || s;
+}
+
+// Parse the budget tracker: skip the metadata block, then for each client block
+// read only its "All Campaign Spend" subtotal row (the client totals).
+function parseBudgets(text){
+  budgets = {};
+  if (!text) return;
+  const rows = parseCSV(text);
+  if (tabLooksEmpty(rows)) return;         // whole tab blank / IMPORTRANGE transient → silent no-op
+  let h = -1;
+  for (let i = 0; i < rows.length; i++){ if ((rows[i][0]||'').trim() === 'Client'){ h = i; break; } }
+  if (h < 0){ console.warn('[budget] no "Client" header row found — pacing disabled'); return; }
+  let curClient = null;
+  for (let i = h + 1; i < rows.length; i++){
+    const r = rows[i];
+    const c0 = (r[0]||'').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
+    const c1 = (r[1]||'').replace(/\s+/g,' ').trim();
+    if (c0 === 'Client') continue;                          // repeated header row
+    if (c0 && !isTransientCell(c0)) curClient = c0;          // client-start row
+    if (c1 === 'All Campaign Spend' && curClient){           // subtotal row → client totals
+      const key = normalizeClientKey(curClient);
+      if (!key) continue;
+      budgets[key] = {
+        client: curClient,
+        original: excelNum(r[2]),   // Original Budget
+        revised:  excelNum(r[3]),   // Revised Budget
+        lc:       excelNum(r[8]),   // Revenue LC MTD
+        meta:     excelNum(r[9]),   // Revenue META MTD
+      };
+    }
+  }
+}
+
+const pacingColor = s => s === 'on track' ? 'var(--pos)' : s === 'overpacing' ? 'var(--neg)' : 'var(--warn)';
+
+// Pace budget (from tracker) vs spend MTD (from the live feed), current month only.
+function computePacing(){
+  if (!rawFB.length || Object.keys(budgets).length === 0) return null;
+  const maxD = new Date(Math.max(...rawFB.map(r => r.d.getTime())));
+  const y = maxD.getFullYear(), m = maxD.getMonth();
+  const monthStart = new Date(y, m, 1);
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const daysElapsed = maxD.getDate();
+  const timePacing = daysElapsed / daysInMonth;
+
+  // MTD spend folded into budget keys (Sting AU/US/UK/DE → one "sting" budget)
+  const spendByKey = {};
+  rawFB.forEach(r => {
+    if (r.d >= monthStart && r.d <= maxD){
+      const key = normalizeClientKey(r.client);
+      spendByKey[key] = (spendByKey[key] || 0) + r.cost;
+    }
+  });
+
+  const rows = [];
+  Object.entries(budgets).forEach(([key, b]) => {
+    let budget, usedFallback = false;
+    if (pacingBudgetMode === 'revised') budget = b.revised != null ? b.revised : (usedFallback = b.original != null, b.original);
+    else                                budget = b.original != null ? b.original : (usedFallback = b.revised != null, b.revised);
+    if (budget == null || budget <= 0) return;              // no budget set → exclude
+    const spend = spendByKey[key] || 0;
+    const budgetUsedPct = spend / budget;
+    const projectedEOM = daysElapsed > 0 ? spend / daysElapsed * daysInMonth : 0;
+    const landing = projectedEOM - budget;
+    const status = Math.abs(budgetUsedPct - timePacing) <= 0.05 ? 'on track'
+                 : budgetUsedPct > timePacing ? 'overpacing' : 'underpacing';
+    rows.push({ key, name: b.client, budget, spend, budgetUsedPct, projectedEOM, landing, status, usedFallback });
+  });
+  rows.sort((a,b) => b.budget - a.budget);
+
+  const totBudget = rows.reduce((s,r) => s + r.budget, 0);
+  const totSpend  = rows.reduce((s,r) => s + r.spend, 0);
+  const totProj   = rows.reduce((s,r) => s + r.projectedEOM, 0);
+  return {
+    rows, timePacing, daysElapsed, daysInMonth, maxD,
+    portfolio: {
+      budget: totBudget, spend: totSpend, projected: totProj, landing: totProj - totBudget,
+      usedPct: totBudget > 0 ? totSpend / totBudget : 0,
+    },
+  };
+}
+
+function renderPacing(){
+  const sec = document.getElementById('pacingSection');
+  const p = computePacing();
+  if (!p || !p.rows.length){ sec.hidden = true; return; }
+  sec.hidden = false;
+
+  document.getElementById('pacingOriginal').classList.toggle('active', pacingBudgetMode === 'original');
+  document.getElementById('pacingRevised').classList.toggle('active', pacingBudgetMode === 'revised');
+
+  const monthName = p.maxD.toLocaleDateString('en-AU', { month:'long', year:'numeric' });
+  const port = p.portfolio;
+  const portStatus = Math.abs(port.usedPct - p.timePacing) <= 0.05 ? 'on track' : port.usedPct > p.timePacing ? 'overpacing' : 'underpacing';
+  const portCol = pacingColor(portStatus);
+  const kpis = [
+    { label: `Total budget · ${pacingBudgetMode}`, value: fmtMoney(port.budget), sub: monthName },
+    { label: 'Spend MTD', value: fmtMoney(port.spend), sub: `${(port.usedPct*100).toFixed(0)}% used · ${(p.timePacing*100).toFixed(0)}% of month elapsed` },
+    { label: 'Projected EOM', value: fmtMoney(port.projected), sub: `<span style="color:${portCol};font-weight:600;">${port.landing>=0?'+':''}${fmtMoney(port.landing)} vs budget · ${portStatus}</span>` },
+  ];
+  document.getElementById('pacingKpis').innerHTML = kpis.map(c => `
+    <div class="metric">
+      <div class="metric-label">${c.label}</div>
+      <div class="metric-value">${c.value}</div>
+      <div class="metric-sub"><span>${c.sub}</span></div>
+    </div>`).join('');
+
+  document.getElementById('pacingRows').innerHTML = p.rows.map(r => {
+    const col = pacingColor(r.status);
+    const usedW = Math.min(100, Math.max(1, r.budgetUsedPct*100));
+    const markerL = Math.min(100, p.timePacing*100);
+    return `
+      <div class="pacing-row">
+        <div class="pacing-head">
+          <span class="pacing-name">${r.name}${r.usedFallback?` <span style="font-weight:500;color:var(--dim);font-size:10px;">(only one budget set)</span>`:''}</span>
+          <span class="pacing-budget">${fmtMoneyFull(r.spend)} / ${fmtMoneyFull(r.budget)}</span>
+        </div>
+        <div class="pacing-track">
+          <div class="pacing-fill" style="width:${usedW}%;background:${col};"></div>
+          <div class="pacing-marker" style="left:${markerL}%;" title="Time elapsed ${(p.timePacing*100).toFixed(0)}%"></div>
+        </div>
+        <div class="pacing-foot">
+          <span>${(r.budgetUsedPct*100).toFixed(0)}% of budget used</span>
+          <span>Proj EOM <strong style="color:var(--ink)">${fmtMoney(r.projectedEOM)}</strong> · <span style="color:${col}">${r.landing>=0?'+':''}${fmtMoney(r.landing)}</span> · <span class="pacing-status" style="color:${col}">${r.status}</span></span>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('pacingCaption').textContent =
+    `Current calendar month (${monthName}). Budgets from NEW Budget Tracker; spend from live feed. Day ${p.daysElapsed} of ${p.daysInMonth}.`;
+}
+
+function setPacingMode(mode){
+  if (mode !== 'original' && mode !== 'revised') return;
+  pacingBudgetMode = mode;
+  renderPacing();
+}
+
+// =============================================================================
 // STATE
 // =============================================================================
 let rawFB = [];           // all FB campaign-day rows (after parsing)
-let accountToClient = {}; // FB account name → client display name
+let accountToClient = {}; // FB account name → client display name (from Client Overview N/O/P — legacy fallback)
+let mapAcctRegion = {};   // "account|region" → client (from Client Mapping tab, Task 1)
+let mapAcctSingle = {};   // "account" → client, only when an account maps to exactly one client
 let currentRange = 90;    // days, 'all', or 'custom'
 let customFrom = null;    // Date object when range='custom'
 let customTo = null;      // Date object when range='custom'
@@ -722,6 +1051,9 @@ let campaignSort = { field: 'spend', dir: -1 };
 let campaignPage = 1;
 const PAGE_SIZE = 25;
 let dailyChart = null;
+let hasGA4 = false;       // true only when the active feed carries a non-trivial GA4 LC revenue column (Task 2)
+let budgets = {};         // normalizeClientKey(name) → { client, original, revised, lc, meta } (Task 3)
+let pacingBudgetMode = 'revised';   // 'revised' | 'original' — which budget column to pace against
 
 // =============================================================================
 // LOAD DATA (live from sheet)
@@ -735,10 +1067,19 @@ async function loadData(){
   document.getElementById('dashboard').hidden = true;
 
   try {
-    // Fetch both sheets in parallel
-    const [fbText, coText] = await Promise.all([
-      fetch(csvUrl(GID_FB)).then(r => { if (!r.ok) throw new Error('FB sheet HTTP ' + r.status); return r.text(); }),
-      fetch(csvUrl(GID_CLIENT)).then(r => { if (!r.ok) throw new Error('Client Overview HTTP ' + r.status); return r.text(); }),
+    // Required sheets reject on failure → error state. Optional tabs (mapping)
+    // never reject: a 404 / network error / IMPORTRANGE hiccup just no-ops the
+    // feature and the rest of the dashboard renders normally.
+    const fetchText = (gid, name) => fetch(csvUrl(gid)).then(r => { if (!r.ok) throw new Error(name + ' HTTP ' + r.status); return r.text(); });
+    const optionalText = (gid, name) => gid ? fetchText(gid, name).catch(e => { console.warn('[' + name + '] ' + e.message); return null; }) : Promise.resolve(null);
+
+    // Fetch in parallel (required + optional)
+    const [fbText, coText, mappingText, ga4Text, budgetText] = await Promise.all([
+      fetchText(GID_FB, 'FB sheet'),
+      fetchText(GID_CLIENT, 'Client Overview'),
+      optionalText(GID_MAPPING, 'Client Mapping'),
+      optionalText(GID_FEED_GA4, 'Campaign Feed GA4'),
+      optionalText(GID_BUDGET, 'Budget Tracker'),
     ]);
 
     // Parse Client Overview to extract account→client mapping (columns 12, 13, 14: N, O, P — Facebook Ad Account, GA4 Property, Client Name)
@@ -751,28 +1092,46 @@ async function loadData(){
       if (fbAcc && client) accountToClient[fbAcc] = client;
     }
 
-    // Parse FB Revenue Sheet
-    const fbRows = parseCSV(fbText);
-    rawFB = [];
-    for (let i = 1; i < fbRows.length; i++){
-      const r = fbRows[i];
-      if (!r[0] || r.length < 5) continue;
-      const d = parseISODate(r[0]);
-      if (!d) continue;
-      const account = (r[2]||'').trim();
-      const campaign = (r[3]||'').trim();
-      if (!account) continue;
-      const cost = parseMoney(r[4]);
-      const revenue = parseMoney(r[5]);
-      rawFB.push({
-        d, account, campaign, cost, revenue,
-        client: accountToClient[account] || account.replace(/^(AU|NZ|US)\s*\|\s*/,'').replace(/Ad Account$/,'').trim(),
-        region: getRegion(account, campaign),
-        objective: getObjective(campaign),
-      });
+    // Task 1: build the deterministic account→client lookup (no-op if tab absent)
+    buildMapping(mappingText);
+
+    // Task 2: when the GA4 feed is available, use it as the primary campaign-day
+    // feed (it carries the GA4 LC revenue column). Otherwise parse the FB sheet.
+    const ga4Rows = parseGA4Feed(ga4Text);
+    if (ga4Rows){
+      rawFB = ga4Rows;
+    } else {
+      // Parse FB Revenue Sheet (Meta-only; lcRevenue stays 0)
+      const fbRows = parseCSV(fbText);
+      rawFB = [];
+      for (let i = 1; i < fbRows.length; i++){
+        const r = fbRows[i];
+        if (!r[0] || r.length < 5) continue;
+        const d = parseISODate(r[0]);
+        if (!d) continue;
+        const account = (r[2]||'').trim();
+        const campaign = (r[3]||'').trim();
+        if (!account) continue;
+        const cost = parseMoney(r[4]);
+        const revenue = parseMoney(r[5]);
+        const region = getRegion(account, campaign);
+        rawFB.push({
+          d, account, campaign, cost, revenue, lcRevenue: 0,
+          client: resolveClient(account, region),
+          region,
+          objective: getObjective(campaign),
+        });
+      }
     }
 
     if (rawFB.length === 0) throw new Error('No data rows parsed from the sheet.');
+
+    // Feature-detect GA4: only light up GA4 UI if the feed carries a non-trivial LC column
+    hasGA4 = rawFB.reduce((s,r) => s + (r.lcRevenue||0), 0) > 0;
+    document.body.classList.toggle('has-ga4', hasGA4);
+
+    // Task 3: parse current-month budgets (no-op if tab absent / empty / all-transient)
+    parseBudgets(budgetText);
 
     // Update last refresh timestamp
     document.getElementById('lastRefresh').textContent =
@@ -786,6 +1145,7 @@ async function loadData(){
 
     // Render
     renderAll();
+    renderPacing();   // independent of the time tabs / filters — current month only
 
     document.getElementById('loadingState').hidden = true;
     document.getElementById('dashboard').hidden = false;
@@ -929,6 +1289,8 @@ function renderKPIs(data){
   const spend = data.reduce((s,r) => s + r.cost, 0);
   const revenue = data.reduce((s,r) => s + r.revenue, 0);
   const roas = spend > 0 ? revenue / spend : 0;
+  const lcRevenue = data.reduce((s,r) => s + (r.lcRevenue||0), 0);   // GA4 last-click
+  const lcRoas = spend > 0 ? lcRevenue / spend : 0;
   const campaigns = new Set(data.map(r => r.account + '||' + r.campaign)).size;
   const clients = new Set(data.map(r => r.client)).size;
   const days = new Set(data.map(r => r.d.toISOString().slice(0,10))).size;
@@ -971,6 +1333,10 @@ function renderKPIs(data){
     { cls: 'hero', label: 'Total spend', value: fmtMoney(spend), sub: `${days} days · ${fmtMoney(avgDaily)}/day avg`, delta: deltaHtml(spendDelta) },
     { label: 'FB revenue', value: fmtMoney(revenue), sub: 'Meta-attributed', delta: deltaHtml(revDelta) },
     { label: 'Blended ROAS', value: roas.toFixed(2) + 'x', sub: roas >= 3 ? 'Strong' : roas >= 1.5 ? 'Healthy' : roas >= 1 ? 'Breakeven' : 'Below target' },
+    ...(hasGA4 ? [
+      { label: 'GA4 LC revenue', value: fmtMoney(lcRevenue), sub: 'Last-click (conservative)' },
+      { label: 'GA4 blended ROAS', value: lcRoas.toFixed(2) + 'x', sub: 'Last-click attribution' },
+    ] : []),
     { label: 'Active campaigns', value: campaigns.toLocaleString(), sub: `${clients} clients` },
     { label: 'Avg daily spend', value: fmtMoney(avgDaily), sub: `Over ${days} days` },
     { label: 'Revenue / day', value: fmtMoney(days > 0 ? revenue/days : 0), sub: 'FB-attributed' },
@@ -1028,9 +1394,10 @@ function renderDailyChart(data){
   const byDay = {};
   data.forEach(r => {
     const k = r.d.toISOString().slice(0,10);
-    if (!byDay[k]) byDay[k] = { date: r.d, spend: 0, revenue: 0 };
+    if (!byDay[k]) byDay[k] = { date: r.d, spend: 0, revenue: 0, lc: 0 };
     byDay[k].spend += r.cost;
     byDay[k].revenue += r.revenue;
+    byDay[k].lc += (r.lcRevenue||0);
   });
   const days = Object.values(byDay).sort((a,b) => a.date - b.date);
 
@@ -1044,6 +1411,9 @@ function renderDailyChart(data){
         { type: 'bar', label: 'Spend', data: days.map(d => d.spend), backgroundColor: 'rgba(0,155,255,0.7)', borderColor: '#009BFF', borderWidth: 0, borderRadius: 3, yAxisID: 'y' },
         { type: 'bar', label: 'FB Revenue', data: days.map(d => d.revenue), backgroundColor: 'rgba(119,11,255,0.6)', borderColor: '#770BFF', borderWidth: 0, borderRadius: 3, yAxisID: 'y' },
         { type: 'line', label: 'ROAS', data: days.map(d => d.spend > 0 ? d.revenue/d.spend : 0), borderColor: '#22A36B', backgroundColor: '#22A36B', borderWidth: 2, tension: 0.3, pointRadius: 2, pointHoverRadius: 4, yAxisID: 'y1' },
+        ...(hasGA4 ? [
+          { type: 'line', label: 'GA4 ROAS', data: days.map(d => d.spend > 0 ? d.lc/d.spend : 0), borderColor: '#E0913C', backgroundColor: '#E0913C', borderWidth: 2, borderDash: [5,4], tension: 0.3, pointRadius: 2, pointHoverRadius: 4, yAxisID: 'y1' },
+        ] : []),
       ],
     },
     options: {
@@ -1054,7 +1424,7 @@ function renderDailyChart(data){
           backgroundColor: '#fff', titleColor: '#090A0F', bodyColor: '#52617D', borderColor: '#E1E6F0', borderWidth: 1, padding: 10, cornerRadius: 8, titleFont: { family: 'Wix Madefor Display', weight: 600 }, bodyFont: { family: 'Inconsolata', size: 12 },
           callbacks: {
             label: ctx => {
-              if (ctx.dataset.label === 'ROAS') return `ROAS: ${ctx.parsed.y.toFixed(2)}x`;
+              if (ctx.dataset.label.includes('ROAS')) return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}x`;
               return `${ctx.dataset.label}: ${fmtMoneyFull(ctx.parsed.y)}`;
             },
           },
@@ -1157,17 +1527,19 @@ function renderInsights(data){
 function renderClientTable(data){
   const byClient = {};
   data.forEach(r => {
-    if (!byClient[r.client]) byClient[r.client] = { client: r.client, regions: new Set(), spend: 0, revenue: 0, campaigns: new Set() };
+    if (!byClient[r.client]) byClient[r.client] = { client: r.client, regions: new Set(), spend: 0, revenue: 0, lc: 0, campaigns: new Set() };
     byClient[r.client].regions.add(r.region);
     byClient[r.client].spend += r.cost;
     byClient[r.client].revenue += r.revenue;
+    byClient[r.client].lc += (r.lcRevenue||0);
     byClient[r.client].campaigns.add(r.account + '||' + r.campaign);
   });
   const totalSpend = data.reduce((s,r) => s + r.cost, 0);
   let arr = Object.values(byClient).map(c => ({
     client: c.client, regions: [...c.regions].sort(),
-    spend: c.spend, revenue: c.revenue,
+    spend: c.spend, revenue: c.revenue, lc: c.lc,
     roas: c.spend > 0 ? c.revenue/c.spend : 0,
+    lcRoas: c.spend > 0 ? c.lc/c.spend : 0,
     campaigns: c.campaigns.size, share: totalSpend > 0 ? c.spend/totalSpend*100 : 0,
   }));
 
@@ -1185,7 +1557,7 @@ function renderClientTable(data){
   });
 
   document.getElementById('clientTableBody').innerHTML = arr.length === 0
-    ? `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">No data in view</td></tr>`
+    ? `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);">No data in view</td></tr>`
     : arr.map(c => `
       <tr>
         <td style="font-weight:600;color:var(--ink);">${c.client}</td>
@@ -1193,6 +1565,8 @@ function renderClientTable(data){
         <td class="num">${fmtMoneyFull(c.spend)}</td>
         <td class="num">${fmtMoneyFull(c.revenue)}</td>
         <td class="num roas ${roasClass(c.roas, c.spend)}">${c.roas.toFixed(2)}x</td>
+        <td class="num ga4-col">${fmtMoneyFull(c.lc)}</td>
+        <td class="num roas ga4-col ${roasClass(c.lcRoas, c.spend)}">${c.lcRoas.toFixed(2)}x</td>
         <td class="num">${c.campaigns}</td>
         <td class="num" style="color:var(--muted);">${c.share.toFixed(1)}%</td>
       </tr>`).join('');
@@ -1208,12 +1582,13 @@ function renderCampaignTable(data){
   const byC = {};
   data.forEach(r => {
     const k = r.client + '||' + r.campaign;
-    if (!byC[k]) byC[k] = { client: r.client, account: r.account, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, days: new Set() };
+    if (!byC[k]) byC[k] = { client: r.client, account: r.account, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, lc: 0, days: new Set() };
     byC[k].spend += r.cost;
     byC[k].revenue += r.revenue;
+    byC[k].lc += (r.lcRevenue||0);
     byC[k].days.add(r.d.toISOString().slice(0,10));
   });
-  let arr = Object.values(byC).map(c => ({ ...c, days: c.days.size, roas: c.spend > 0 ? c.revenue/c.spend : 0 }));
+  let arr = Object.values(byC).map(c => ({ ...c, days: c.days.size, roas: c.spend > 0 ? c.revenue/c.spend : 0, lcRoas: c.spend > 0 ? c.lc/c.spend : 0 }));
 
   const { field, dir } = campaignSort;
   arr.sort((a,b) => {
@@ -1237,7 +1612,7 @@ function renderCampaignTable(data){
     `${arr.length.toLocaleString()} campaigns · showing ${start+1}–${Math.min(start+PAGE_SIZE, arr.length)}`;
 
   document.getElementById('campaignTableBody').innerHTML = arr.length === 0
-    ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);">No campaigns match the current filters</td></tr>`
+    ? `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--muted);">No campaigns match the current filters</td></tr>`
     : slice.map(c => `
       <tr>
         <td style="font-weight:600;color:var(--ink);">${c.client}</td>
@@ -1247,6 +1622,8 @@ function renderCampaignTable(data){
         <td class="num">${fmtMoneyFull(c.spend)}</td>
         <td class="num">${fmtMoneyFull(c.revenue)}</td>
         <td class="num roas ${roasClass(c.roas, c.spend)}">${c.spend === 0 ? '—' : c.roas.toFixed(2) + 'x'}</td>
+        <td class="num ga4-col">${fmtMoneyFull(c.lc)}</td>
+        <td class="num roas ga4-col ${roasClass(c.lcRoas, c.spend)}">${c.spend === 0 ? '—' : c.lcRoas.toFixed(2) + 'x'}</td>
         <td class="num" style="color:var(--muted);">${c.days}</td>
       </tr>`).join('');
 
@@ -1512,9 +1889,10 @@ function buildDataContext(){
   // By client
   const byClient = {};
   data.forEach(r => {
-    if (!byClient[r.client]) byClient[r.client] = { client: r.client, spend: 0, revenue: 0, campaigns: new Set(), regions: new Set() };
+    if (!byClient[r.client]) byClient[r.client] = { client: r.client, spend: 0, revenue: 0, lc: 0, campaigns: new Set(), regions: new Set() };
     byClient[r.client].spend += r.cost;
     byClient[r.client].revenue += r.revenue;
+    byClient[r.client].lc += (r.lcRevenue||0);
     byClient[r.client].campaigns.add(r.campaign);
     byClient[r.client].regions.add(r.region);
   });
@@ -1522,6 +1900,7 @@ function buildDataContext(){
     client: c.client, regions: [...c.regions],
     spend: Math.round(c.spend), revenue: Math.round(c.revenue),
     roas: c.spend > 0 ? +(c.revenue/c.spend).toFixed(2) : 0,
+    ...(hasGA4 ? { ga4_lc_revenue: Math.round(c.lc), ga4_roas: c.spend > 0 ? +(c.lc/c.spend).toFixed(2) : 0 } : {}),
     campaigns: c.campaigns.size,
     spend_share_pct: +(c.spend/spend*100).toFixed(1),
   })).sort((a,b) => b.spend - a.spend);
@@ -1530,14 +1909,16 @@ function buildDataContext(){
   const byCamp = {};
   data.forEach(r => {
     const k = r.client + '||' + r.campaign;
-    if (!byCamp[k]) byCamp[k] = { client: r.client, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0 };
+    if (!byCamp[k]) byCamp[k] = { client: r.client, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, lc: 0 };
     byCamp[k].spend += r.cost;
     byCamp[k].revenue += r.revenue;
+    byCamp[k].lc += (r.lcRevenue||0);
   });
   const campArr = Object.values(byCamp).map(c => ({
     client: c.client, campaign: c.campaign, region: c.region, objective: c.objective,
     spend: Math.round(c.spend), revenue: Math.round(c.revenue),
     roas: c.spend > 0 ? +(c.revenue/c.spend).toFixed(2) : 0,
+    ...(hasGA4 ? { ga4_lc_revenue: Math.round(c.lc), ga4_roas: c.spend > 0 ? +(c.lc/c.spend).toFixed(2) : 0 } : {}),
   }));
 
   return {
@@ -1555,6 +1936,10 @@ function buildDataContext(){
     totals: {
       spend: Math.round(spend), revenue: Math.round(revenue),
       blended_roas: spend > 0 ? +(revenue/spend).toFixed(2) : 0,
+      ...(hasGA4 ? {
+        ga4_lc_revenue: Math.round(data.reduce((s,r) => s + (r.lcRevenue||0), 0)),
+        ga4_blended_roas: spend > 0 ? +(data.reduce((s,r) => s + (r.lcRevenue||0), 0) / spend).toFixed(2) : 0,
+      } : {}),
       campaigns: campArr.length, clients: clientArr.length,
       net_contribution: Math.round(revenue - spend),
     },
@@ -1563,7 +1948,30 @@ function buildDataContext(){
     top_roas_campaigns: campArr.filter(c => c.spend >= 50).sort((a,b) => b.roas - a.roas).slice(0, 10),
     underperformers: campArr.filter(c => c.spend >= 50 && c.roas < 1).sort((a,b) => b.spend - a.spend).slice(0, 15),
     wasted_spend_campaigns: campArr.filter(c => c.spend > 20 && c.revenue === 0).sort((a,b) => b.spend - a.spend).slice(0, 15),
+    ...(pacingSummaryForContext() || {}),
   };
+}
+
+// Compact current-month pacing block for the chat (independent of the view's date range).
+function pacingSummaryForContext(){
+  const p = computePacing();
+  if (!p || !p.rows.length) return null;
+  return { current_month_pacing: {
+    note: 'CURRENT CALENDAR MONTH ONLY — independent of the view date range above. Spend is MTD from the live feed; budgets from the budget tracker.',
+    budget_basis: pacingBudgetMode,
+    month: p.maxD.toISOString().slice(0,7),
+    days_elapsed: p.daysElapsed, days_in_month: p.daysInMonth,
+    time_pacing_pct: +(p.timePacing*100).toFixed(0),
+    portfolio: {
+      budget: Math.round(p.portfolio.budget), spend_mtd: Math.round(p.portfolio.spend),
+      projected_eom: Math.round(p.portfolio.projected), landing_vs_budget: Math.round(p.portfolio.landing),
+    },
+    by_client: p.rows.map(r => ({
+      client: r.name, budget: Math.round(r.budget), spend_mtd: Math.round(r.spend),
+      budget_used_pct: +(r.budgetUsedPct*100).toFixed(0), projected_eom: Math.round(r.projectedEOM),
+      landing_vs_budget: Math.round(r.landing), status: r.status,
+    })),
+  } };
 }
 
 function buildSystemPrompt(){
@@ -1571,6 +1979,10 @@ function buildSystemPrompt(){
   return `You are a Meta Ads performance analyst working at Pattern, a digital marketing agency in Australia and New Zealand. You help the user understand their Social Budget dashboard data.
 
 The user's CURRENT filtered view is provided as JSON below. Use ONLY these numbers — do not invent figures. If the user asks about something not in this data (a different date range, a client that's not visible, or detail beyond the top-N lists), tell them which filter or time range to adjust to see it.
+${hasGA4 ? `
+This view includes TWO attribution models. \`revenue\`/\`roas\` are Meta platform-attributed (Facebook's own view, which tends to over-claim). \`ga4_lc_revenue\`/\`ga4_roas\` are GA4 last-click (a more conservative view that under-claims). The truth usually sits between them — quote both when judging performance, and flag large gaps between the two as possible attribution/tracking issues.` : ''}
+
+If a \`current_month_pacing\` block is present, you can answer budget questions ("who's overpacing?", "are we on track for the month?"). IMPORTANT: that block always covers the CURRENT calendar month only and is independent of the view's date range above — never blend its month-to-date figures with the date-range totals, and say "this month" when you quote it.
 
 \`\`\`json
 ${JSON.stringify(ctx, null, 2)}
