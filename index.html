@@ -305,6 +305,12 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
   .chat-fab{padding:14px;}
 }
 
+/* GA4 columns (Task 2) — hidden unless the active feed carries GA4 data */
+.ga4-col{display:none;}
+body.has-ga4 .ga4-col{display:table-cell;}
+.ga4-legend{display:none;}
+body.has-ga4 .ga4-legend{display:flex;}
+
 /* Hide chat panel until JS runs */
 [hidden]{display:none !important;}
 
@@ -430,6 +436,7 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
           <span class="legend-item"><span class="legend-dot" style="background:var(--blue-bright)"></span>Spend</span>
           <span class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span>FB Revenue</span>
           <span class="legend-item"><span class="legend-dot" style="background:var(--pos);border-radius:50%;"></span>ROAS</span>
+          <span class="legend-item ga4-legend"><span class="legend-dot" style="background:var(--warn);border-radius:50%;"></span>GA4 ROAS</span>
         </div>
         <div style="position:relative;height:280px;"><canvas id="dailyChart"></canvas></div>
       </div>
@@ -487,6 +494,8 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
               <th class="num" onclick="sortByClient('spend')">Spend <span class="sort-icon" id="cs-spend">↓</span></th>
               <th class="num" onclick="sortByClient('revenue')">FB Revenue <span class="sort-icon" id="cs-revenue">↕</span></th>
               <th class="num" onclick="sortByClient('roas')">FB ROAS <span class="sort-icon" id="cs-roas">↕</span></th>
+              <th class="num no-sort ga4-col">GA4 Revenue</th>
+              <th class="num no-sort ga4-col">GA4 ROAS</th>
               <th class="num" onclick="sortByClient('campaigns')">Campaigns <span class="sort-icon" id="cs-campaigns">↕</span></th>
               <th class="num" onclick="sortByClient('share')">Share <span class="sort-icon" id="cs-share">↕</span></th>
             </tr>
@@ -515,6 +524,8 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
               <th class="num" onclick="sortByCampaign('spend')">Spend <span class="sort-icon" id="ts-spend">↓</span></th>
               <th class="num" onclick="sortByCampaign('revenue')">Revenue <span class="sort-icon" id="ts-revenue">↕</span></th>
               <th class="num" onclick="sortByCampaign('roas')">ROAS <span class="sort-icon" id="ts-roas">↕</span></th>
+              <th class="num no-sort ga4-col">GA4 Revenue</th>
+              <th class="num no-sort ga4-col">GA4 ROAS</th>
               <th class="num" onclick="sortByCampaign('days')">Days <span class="sort-icon" id="ts-days">↕</span></th>
             </tr>
           </thead>
@@ -789,6 +800,43 @@ function resolveClient(account, region){
 }
 
 // =============================================================================
+// GA4 CAMPAIGN FEED (Task 2) — "Campaign Feed GA4 (Import)"
+// Columns (header-detected): Date, Month, Meta Ads Account, Campaign, Region,
+// Spends, Meta Ads Revenue, Facebook ROAS, LC Revenue (GA4), LC ROAS.
+// Returns the same row shape as the FB feed plus a `lcRevenue` field, or null
+// if the tab is unusable (absent, empty, or all IMPORTRANGE transients).
+// =============================================================================
+function parseGA4Feed(text){
+  if (!text) return null;
+  const rows = parseCSV(text);
+  if (rows.length < 2) return null;
+  const hdr = rows[0].map(h => (h||'').toLowerCase().trim());
+  const find = (re, fb) => { const i = hdr.findIndex(h => re.test(h)); return i >= 0 ? i : fb; };
+  const iDate = find(/date/, 0), iAcc = find(/account/, 2), iCamp = find(/campaign/, 3),
+        iCost = find(/spend|cost/, 5), iRev = find(/meta ads revenue|conversion value/, 6),
+        iLC   = find(/lc revenue|ga4/, 8);
+  const out = [];
+  for (let i = 1; i < rows.length; i++){
+    const r = rows[i];
+    if (!r[iDate] || isTransientCell(r[iDate])) continue;       // blank trailing / transient rows
+    const d = parseISODate(r[iDate]); if (!d) continue;
+    const account = (r[iAcc]||'').trim(); if (!account || isTransientCell(account)) continue;
+    const campaign = (r[iCamp]||'').trim();
+    const region = getRegion(account, campaign);
+    out.push({
+      d, account, campaign,
+      cost: parseMoney(r[iCost]),
+      revenue: parseMoney(r[iRev]),
+      lcRevenue: iLC >= 0 ? parseMoney(r[iLC]) : 0,
+      region,
+      objective: getObjective(campaign),
+      client: resolveClient(account, region),
+    });
+  }
+  return out.length ? out : null;
+}
+
+// =============================================================================
 // STATE
 // =============================================================================
 let rawFB = [];           // all FB campaign-day rows (after parsing)
@@ -804,6 +852,7 @@ let campaignSort = { field: 'spend', dir: -1 };
 let campaignPage = 1;
 const PAGE_SIZE = 25;
 let dailyChart = null;
+let hasGA4 = false;       // true only when the active feed carries a non-trivial GA4 LC revenue column (Task 2)
 
 // =============================================================================
 // LOAD DATA (live from sheet)
@@ -824,10 +873,11 @@ async function loadData(){
     const optionalText = (gid, name) => gid ? fetchText(gid, name).catch(e => { console.warn('[' + name + '] ' + e.message); return null; }) : Promise.resolve(null);
 
     // Fetch in parallel (required + optional)
-    const [fbText, coText, mappingText] = await Promise.all([
+    const [fbText, coText, mappingText, ga4Text] = await Promise.all([
       fetchText(GID_FB, 'FB sheet'),
       fetchText(GID_CLIENT, 'Client Overview'),
       optionalText(GID_MAPPING, 'Client Mapping'),
+      optionalText(GID_FEED_GA4, 'Campaign Feed GA4'),
     ]);
 
     // Parse Client Overview to extract account→client mapping (columns 12, 13, 14: N, O, P — Facebook Ad Account, GA4 Property, Client Name)
@@ -843,29 +893,40 @@ async function loadData(){
     // Task 1: build the deterministic account→client lookup (no-op if tab absent)
     buildMapping(mappingText);
 
-    // Parse FB Revenue Sheet
-    const fbRows = parseCSV(fbText);
-    rawFB = [];
-    for (let i = 1; i < fbRows.length; i++){
-      const r = fbRows[i];
-      if (!r[0] || r.length < 5) continue;
-      const d = parseISODate(r[0]);
-      if (!d) continue;
-      const account = (r[2]||'').trim();
-      const campaign = (r[3]||'').trim();
-      if (!account) continue;
-      const cost = parseMoney(r[4]);
-      const revenue = parseMoney(r[5]);
-      const region = getRegion(account, campaign);
-      rawFB.push({
-        d, account, campaign, cost, revenue,
-        client: resolveClient(account, region),
-        region,
-        objective: getObjective(campaign),
-      });
+    // Task 2: when the GA4 feed is available, use it as the primary campaign-day
+    // feed (it carries the GA4 LC revenue column). Otherwise parse the FB sheet.
+    const ga4Rows = parseGA4Feed(ga4Text);
+    if (ga4Rows){
+      rawFB = ga4Rows;
+    } else {
+      // Parse FB Revenue Sheet (Meta-only; lcRevenue stays 0)
+      const fbRows = parseCSV(fbText);
+      rawFB = [];
+      for (let i = 1; i < fbRows.length; i++){
+        const r = fbRows[i];
+        if (!r[0] || r.length < 5) continue;
+        const d = parseISODate(r[0]);
+        if (!d) continue;
+        const account = (r[2]||'').trim();
+        const campaign = (r[3]||'').trim();
+        if (!account) continue;
+        const cost = parseMoney(r[4]);
+        const revenue = parseMoney(r[5]);
+        const region = getRegion(account, campaign);
+        rawFB.push({
+          d, account, campaign, cost, revenue, lcRevenue: 0,
+          client: resolveClient(account, region),
+          region,
+          objective: getObjective(campaign),
+        });
+      }
     }
 
     if (rawFB.length === 0) throw new Error('No data rows parsed from the sheet.');
+
+    // Feature-detect GA4: only light up GA4 UI if the feed carries a non-trivial LC column
+    hasGA4 = rawFB.reduce((s,r) => s + (r.lcRevenue||0), 0) > 0;
+    document.body.classList.toggle('has-ga4', hasGA4);
 
     // Update last refresh timestamp
     document.getElementById('lastRefresh').textContent =
@@ -1022,6 +1083,8 @@ function renderKPIs(data){
   const spend = data.reduce((s,r) => s + r.cost, 0);
   const revenue = data.reduce((s,r) => s + r.revenue, 0);
   const roas = spend > 0 ? revenue / spend : 0;
+  const lcRevenue = data.reduce((s,r) => s + (r.lcRevenue||0), 0);   // GA4 last-click
+  const lcRoas = spend > 0 ? lcRevenue / spend : 0;
   const campaigns = new Set(data.map(r => r.account + '||' + r.campaign)).size;
   const clients = new Set(data.map(r => r.client)).size;
   const days = new Set(data.map(r => r.d.toISOString().slice(0,10))).size;
@@ -1064,6 +1127,10 @@ function renderKPIs(data){
     { cls: 'hero', label: 'Total spend', value: fmtMoney(spend), sub: `${days} days · ${fmtMoney(avgDaily)}/day avg`, delta: deltaHtml(spendDelta) },
     { label: 'FB revenue', value: fmtMoney(revenue), sub: 'Meta-attributed', delta: deltaHtml(revDelta) },
     { label: 'Blended ROAS', value: roas.toFixed(2) + 'x', sub: roas >= 3 ? 'Strong' : roas >= 1.5 ? 'Healthy' : roas >= 1 ? 'Breakeven' : 'Below target' },
+    ...(hasGA4 ? [
+      { label: 'GA4 LC revenue', value: fmtMoney(lcRevenue), sub: 'Last-click (conservative)' },
+      { label: 'GA4 blended ROAS', value: lcRoas.toFixed(2) + 'x', sub: 'Last-click attribution' },
+    ] : []),
     { label: 'Active campaigns', value: campaigns.toLocaleString(), sub: `${clients} clients` },
     { label: 'Avg daily spend', value: fmtMoney(avgDaily), sub: `Over ${days} days` },
     { label: 'Revenue / day', value: fmtMoney(days > 0 ? revenue/days : 0), sub: 'FB-attributed' },
@@ -1121,9 +1188,10 @@ function renderDailyChart(data){
   const byDay = {};
   data.forEach(r => {
     const k = r.d.toISOString().slice(0,10);
-    if (!byDay[k]) byDay[k] = { date: r.d, spend: 0, revenue: 0 };
+    if (!byDay[k]) byDay[k] = { date: r.d, spend: 0, revenue: 0, lc: 0 };
     byDay[k].spend += r.cost;
     byDay[k].revenue += r.revenue;
+    byDay[k].lc += (r.lcRevenue||0);
   });
   const days = Object.values(byDay).sort((a,b) => a.date - b.date);
 
@@ -1137,6 +1205,9 @@ function renderDailyChart(data){
         { type: 'bar', label: 'Spend', data: days.map(d => d.spend), backgroundColor: 'rgba(0,155,255,0.7)', borderColor: '#009BFF', borderWidth: 0, borderRadius: 3, yAxisID: 'y' },
         { type: 'bar', label: 'FB Revenue', data: days.map(d => d.revenue), backgroundColor: 'rgba(119,11,255,0.6)', borderColor: '#770BFF', borderWidth: 0, borderRadius: 3, yAxisID: 'y' },
         { type: 'line', label: 'ROAS', data: days.map(d => d.spend > 0 ? d.revenue/d.spend : 0), borderColor: '#22A36B', backgroundColor: '#22A36B', borderWidth: 2, tension: 0.3, pointRadius: 2, pointHoverRadius: 4, yAxisID: 'y1' },
+        ...(hasGA4 ? [
+          { type: 'line', label: 'GA4 ROAS', data: days.map(d => d.spend > 0 ? d.lc/d.spend : 0), borderColor: '#E0913C', backgroundColor: '#E0913C', borderWidth: 2, borderDash: [5,4], tension: 0.3, pointRadius: 2, pointHoverRadius: 4, yAxisID: 'y1' },
+        ] : []),
       ],
     },
     options: {
@@ -1147,7 +1218,7 @@ function renderDailyChart(data){
           backgroundColor: '#fff', titleColor: '#090A0F', bodyColor: '#52617D', borderColor: '#E1E6F0', borderWidth: 1, padding: 10, cornerRadius: 8, titleFont: { family: 'Wix Madefor Display', weight: 600 }, bodyFont: { family: 'Inconsolata', size: 12 },
           callbacks: {
             label: ctx => {
-              if (ctx.dataset.label === 'ROAS') return `ROAS: ${ctx.parsed.y.toFixed(2)}x`;
+              if (ctx.dataset.label.includes('ROAS')) return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}x`;
               return `${ctx.dataset.label}: ${fmtMoneyFull(ctx.parsed.y)}`;
             },
           },
@@ -1250,17 +1321,19 @@ function renderInsights(data){
 function renderClientTable(data){
   const byClient = {};
   data.forEach(r => {
-    if (!byClient[r.client]) byClient[r.client] = { client: r.client, regions: new Set(), spend: 0, revenue: 0, campaigns: new Set() };
+    if (!byClient[r.client]) byClient[r.client] = { client: r.client, regions: new Set(), spend: 0, revenue: 0, lc: 0, campaigns: new Set() };
     byClient[r.client].regions.add(r.region);
     byClient[r.client].spend += r.cost;
     byClient[r.client].revenue += r.revenue;
+    byClient[r.client].lc += (r.lcRevenue||0);
     byClient[r.client].campaigns.add(r.account + '||' + r.campaign);
   });
   const totalSpend = data.reduce((s,r) => s + r.cost, 0);
   let arr = Object.values(byClient).map(c => ({
     client: c.client, regions: [...c.regions].sort(),
-    spend: c.spend, revenue: c.revenue,
+    spend: c.spend, revenue: c.revenue, lc: c.lc,
     roas: c.spend > 0 ? c.revenue/c.spend : 0,
+    lcRoas: c.spend > 0 ? c.lc/c.spend : 0,
     campaigns: c.campaigns.size, share: totalSpend > 0 ? c.spend/totalSpend*100 : 0,
   }));
 
@@ -1278,7 +1351,7 @@ function renderClientTable(data){
   });
 
   document.getElementById('clientTableBody').innerHTML = arr.length === 0
-    ? `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">No data in view</td></tr>`
+    ? `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);">No data in view</td></tr>`
     : arr.map(c => `
       <tr>
         <td style="font-weight:600;color:var(--ink);">${c.client}</td>
@@ -1286,6 +1359,8 @@ function renderClientTable(data){
         <td class="num">${fmtMoneyFull(c.spend)}</td>
         <td class="num">${fmtMoneyFull(c.revenue)}</td>
         <td class="num roas ${roasClass(c.roas, c.spend)}">${c.roas.toFixed(2)}x</td>
+        <td class="num ga4-col">${fmtMoneyFull(c.lc)}</td>
+        <td class="num roas ga4-col ${roasClass(c.lcRoas, c.spend)}">${c.lcRoas.toFixed(2)}x</td>
         <td class="num">${c.campaigns}</td>
         <td class="num" style="color:var(--muted);">${c.share.toFixed(1)}%</td>
       </tr>`).join('');
@@ -1301,12 +1376,13 @@ function renderCampaignTable(data){
   const byC = {};
   data.forEach(r => {
     const k = r.client + '||' + r.campaign;
-    if (!byC[k]) byC[k] = { client: r.client, account: r.account, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, days: new Set() };
+    if (!byC[k]) byC[k] = { client: r.client, account: r.account, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, lc: 0, days: new Set() };
     byC[k].spend += r.cost;
     byC[k].revenue += r.revenue;
+    byC[k].lc += (r.lcRevenue||0);
     byC[k].days.add(r.d.toISOString().slice(0,10));
   });
-  let arr = Object.values(byC).map(c => ({ ...c, days: c.days.size, roas: c.spend > 0 ? c.revenue/c.spend : 0 }));
+  let arr = Object.values(byC).map(c => ({ ...c, days: c.days.size, roas: c.spend > 0 ? c.revenue/c.spend : 0, lcRoas: c.spend > 0 ? c.lc/c.spend : 0 }));
 
   const { field, dir } = campaignSort;
   arr.sort((a,b) => {
@@ -1330,7 +1406,7 @@ function renderCampaignTable(data){
     `${arr.length.toLocaleString()} campaigns · showing ${start+1}–${Math.min(start+PAGE_SIZE, arr.length)}`;
 
   document.getElementById('campaignTableBody').innerHTML = arr.length === 0
-    ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);">No campaigns match the current filters</td></tr>`
+    ? `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--muted);">No campaigns match the current filters</td></tr>`
     : slice.map(c => `
       <tr>
         <td style="font-weight:600;color:var(--ink);">${c.client}</td>
@@ -1340,6 +1416,8 @@ function renderCampaignTable(data){
         <td class="num">${fmtMoneyFull(c.spend)}</td>
         <td class="num">${fmtMoneyFull(c.revenue)}</td>
         <td class="num roas ${roasClass(c.roas, c.spend)}">${c.spend === 0 ? '—' : c.roas.toFixed(2) + 'x'}</td>
+        <td class="num ga4-col">${fmtMoneyFull(c.lc)}</td>
+        <td class="num roas ga4-col ${roasClass(c.lcRoas, c.spend)}">${c.spend === 0 ? '—' : c.lcRoas.toFixed(2) + 'x'}</td>
         <td class="num" style="color:var(--muted);">${c.days}</td>
       </tr>`).join('');
 
@@ -1605,9 +1683,10 @@ function buildDataContext(){
   // By client
   const byClient = {};
   data.forEach(r => {
-    if (!byClient[r.client]) byClient[r.client] = { client: r.client, spend: 0, revenue: 0, campaigns: new Set(), regions: new Set() };
+    if (!byClient[r.client]) byClient[r.client] = { client: r.client, spend: 0, revenue: 0, lc: 0, campaigns: new Set(), regions: new Set() };
     byClient[r.client].spend += r.cost;
     byClient[r.client].revenue += r.revenue;
+    byClient[r.client].lc += (r.lcRevenue||0);
     byClient[r.client].campaigns.add(r.campaign);
     byClient[r.client].regions.add(r.region);
   });
@@ -1615,6 +1694,7 @@ function buildDataContext(){
     client: c.client, regions: [...c.regions],
     spend: Math.round(c.spend), revenue: Math.round(c.revenue),
     roas: c.spend > 0 ? +(c.revenue/c.spend).toFixed(2) : 0,
+    ...(hasGA4 ? { ga4_lc_revenue: Math.round(c.lc), ga4_roas: c.spend > 0 ? +(c.lc/c.spend).toFixed(2) : 0 } : {}),
     campaigns: c.campaigns.size,
     spend_share_pct: +(c.spend/spend*100).toFixed(1),
   })).sort((a,b) => b.spend - a.spend);
@@ -1623,14 +1703,16 @@ function buildDataContext(){
   const byCamp = {};
   data.forEach(r => {
     const k = r.client + '||' + r.campaign;
-    if (!byCamp[k]) byCamp[k] = { client: r.client, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0 };
+    if (!byCamp[k]) byCamp[k] = { client: r.client, campaign: r.campaign, region: r.region, objective: r.objective, spend: 0, revenue: 0, lc: 0 };
     byCamp[k].spend += r.cost;
     byCamp[k].revenue += r.revenue;
+    byCamp[k].lc += (r.lcRevenue||0);
   });
   const campArr = Object.values(byCamp).map(c => ({
     client: c.client, campaign: c.campaign, region: c.region, objective: c.objective,
     spend: Math.round(c.spend), revenue: Math.round(c.revenue),
     roas: c.spend > 0 ? +(c.revenue/c.spend).toFixed(2) : 0,
+    ...(hasGA4 ? { ga4_lc_revenue: Math.round(c.lc), ga4_roas: c.spend > 0 ? +(c.lc/c.spend).toFixed(2) : 0 } : {}),
   }));
 
   return {
@@ -1648,6 +1730,10 @@ function buildDataContext(){
     totals: {
       spend: Math.round(spend), revenue: Math.round(revenue),
       blended_roas: spend > 0 ? +(revenue/spend).toFixed(2) : 0,
+      ...(hasGA4 ? {
+        ga4_lc_revenue: Math.round(data.reduce((s,r) => s + (r.lcRevenue||0), 0)),
+        ga4_blended_roas: spend > 0 ? +(data.reduce((s,r) => s + (r.lcRevenue||0), 0) / spend).toFixed(2) : 0,
+      } : {}),
       campaigns: campArr.length, clients: clientArr.length,
       net_contribution: Math.round(revenue - spend),
     },
@@ -1664,6 +1750,8 @@ function buildSystemPrompt(){
   return `You are a Meta Ads performance analyst working at Pattern, a digital marketing agency in Australia and New Zealand. You help the user understand their Social Budget dashboard data.
 
 The user's CURRENT filtered view is provided as JSON below. Use ONLY these numbers — do not invent figures. If the user asks about something not in this data (a different date range, a client that's not visible, or detail beyond the top-N lists), tell them which filter or time range to adjust to see it.
+${hasGA4 ? `
+This view includes TWO attribution models. \`revenue\`/\`roas\` are Meta platform-attributed (Facebook's own view, which tends to over-claim). \`ga4_lc_revenue\`/\`ga4_roas\` are GA4 last-click (a more conservative view that under-claims). The truth usually sits between them — quote both when judging performance, and flag large gaps between the two as possible attribution/tracking issues.` : ''}
 
 \`\`\`json
 ${JSON.stringify(ctx, null, 2)}
