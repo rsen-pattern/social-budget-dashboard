@@ -311,6 +311,24 @@ body.has-ga4 .ga4-col{display:table-cell;}
 .ga4-legend{display:none;}
 body.has-ga4 .ga4-legend{display:flex;}
 
+/* ============== BUDGET PACING (Task 3) ============== */
+.pacing-toggle{display:flex;align-items:center;gap:6px;}
+.pacing-toggle-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-right:2px;}
+.pacing-btn{font-family:var(--font-display);font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all .12s;}
+.pacing-btn:hover{border-color:var(--blue-bright);color:var(--blue-bright);}
+.pacing-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.pacing-row{padding:11px 0;border-bottom:1px dashed var(--line);}
+.pacing-row:last-child{border-bottom:none;}
+.pacing-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:5px;}
+.pacing-name{font-size:13px;font-weight:600;color:var(--ink);}
+.pacing-budget{font-family:var(--font-mono);font-size:11px;color:var(--muted);flex-shrink:0;}
+.pacing-track{position:relative;background:var(--subtle);border-radius:4px;height:9px;overflow:hidden;margin:5px 0;}
+.pacing-fill{height:100%;border-radius:4px;transition:width .4s ease-out;}
+.pacing-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.5;}
+.pacing-foot{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted);font-family:var(--font-mono);flex-wrap:wrap;}
+.pacing-status{font-weight:700;text-transform:capitalize;}
+.pacing-caption{font-size:10.5px;color:var(--dim);margin-top:14px;}
+
 /* Hide chat panel until JS runs */
 [hidden]{display:none !important;}
 
@@ -405,6 +423,23 @@ body.has-ga4 .ga4-legend{display:flex;}
 
     <!-- EXECUTIVE SUMMARY -->
     <div class="callout" id="summary"></div>
+
+    <!-- BUDGET PACING (current calendar month — independent of the time tabs) -->
+    <div id="pacingSection" hidden>
+      <div class="section-header">
+        <div class="section-title">Budget pacing — <em>this month</em></div>
+        <div class="pacing-toggle">
+          <span class="pacing-toggle-label">Pace against</span>
+          <button class="pacing-btn" id="pacingOriginal" onclick="setPacingMode('original')">Original</button>
+          <button class="pacing-btn active" id="pacingRevised" onclick="setPacingMode('revised')">Revised</button>
+        </div>
+      </div>
+      <div class="metric-grid" id="pacingKpis" style="grid-template-columns:repeat(3,1fr);"></div>
+      <div class="card" style="margin-bottom:22px;">
+        <div id="pacingRows"></div>
+        <div class="pacing-caption" id="pacingCaption"></div>
+      </div>
+    </div>
 
     <!-- FILTERS -->
     <div class="filters-panel" id="filtersPanel">
@@ -683,6 +718,10 @@ const excelNum = s => {
   return isFinite(v) ? v : null;
 };
 
+// True when a parsed CSV has no real content — every cell blank/transient.
+// Lets a whole IMPORTRANGE tab in a "Loading.../#REF!" state no-op silently.
+const tabLooksEmpty = rows => !rows.length || rows.every(r => r.every(isTransientCell));
+
 const parseISODate = s => {
   if (!s) return null;
   // "2026-01-01" format
@@ -758,7 +797,7 @@ function buildMapping(text){
   mapAcctSingle = {};
   if (!text) return;                       // GID not set / 404 → legacy behaviour
   const rows = parseCSV(text);
-  if (!rows.length) return;
+  if (tabLooksEmpty(rows)) return;         // whole tab blank / IMPORTRANGE transient → silent no-op
   const hdr = rows[0].map(h => (h||'').toLowerCase().trim());
   const find = re => hdr.findIndex(h => re.test(h));
   const iClient = find(/client/);
@@ -837,6 +876,166 @@ function parseGA4Feed(text){
 }
 
 // =============================================================================
+// BUDGET PACING (Task 3) — "Budget Tracker (Import)"
+// =============================================================================
+// Known label bridges that normalisation can't infer on its own. Add an entry
+// here when a tracker client label and the feed's client label don't collapse
+// to the same key automatically (key/value are both already-normalised tokens).
+const CLIENT_ALIASES = {
+  // 'helen kaminski': 'helen kaminski',   // example placeholder — extend as needed
+};
+
+// Collapse a client label (tracker OR dashboard) to a join key: drop embedded
+// newlines, region tokens/joiners and platform suffixes, lower-case. So
+// "STING AU + US + UK + DE" and "Sting AU"/"Sting US" both → "sting", and
+// "Converse AU + NZ" and "Converse Meta" both → "converse".
+function normalizeClientKey(name){
+  if (!name) return '';
+  let s = String(name).replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+  s = s.replace(/[+&/,]/g,' ');                            // region joiners
+  s = s.replace(/\b(au|nz|us|usa|uk|gb|de|anz)\b/g,' ');   // region tokens
+  s = s.replace(/\b(meta|tiktok|facebook|fb)\b/g,' ');     // platform tokens the dashboard appends
+  s = s.replace(/\s+/g,' ').trim();
+  return CLIENT_ALIASES[s] || s;
+}
+
+// Parse the budget tracker: skip the metadata block, then for each client block
+// read only its "All Campaign Spend" subtotal row (the client totals).
+function parseBudgets(text){
+  budgets = {};
+  if (!text) return;
+  const rows = parseCSV(text);
+  if (tabLooksEmpty(rows)) return;         // whole tab blank / IMPORTRANGE transient → silent no-op
+  let h = -1;
+  for (let i = 0; i < rows.length; i++){ if ((rows[i][0]||'').trim() === 'Client'){ h = i; break; } }
+  if (h < 0){ console.warn('[budget] no "Client" header row found — pacing disabled'); return; }
+  let curClient = null;
+  for (let i = h + 1; i < rows.length; i++){
+    const r = rows[i];
+    const c0 = (r[0]||'').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
+    const c1 = (r[1]||'').replace(/\s+/g,' ').trim();
+    if (c0 === 'Client') continue;                          // repeated header row
+    if (c0 && !isTransientCell(c0)) curClient = c0;          // client-start row
+    if (c1 === 'All Campaign Spend' && curClient){           // subtotal row → client totals
+      const key = normalizeClientKey(curClient);
+      if (!key) continue;
+      budgets[key] = {
+        client: curClient,
+        original: excelNum(r[2]),   // Original Budget
+        revised:  excelNum(r[3]),   // Revised Budget
+        lc:       excelNum(r[8]),   // Revenue LC MTD
+        meta:     excelNum(r[9]),   // Revenue META MTD
+      };
+    }
+  }
+}
+
+const pacingColor = s => s === 'on track' ? 'var(--pos)' : s === 'overpacing' ? 'var(--neg)' : 'var(--warn)';
+
+// Pace budget (from tracker) vs spend MTD (from the live feed), current month only.
+function computePacing(){
+  if (!rawFB.length || Object.keys(budgets).length === 0) return null;
+  const maxD = new Date(Math.max(...rawFB.map(r => r.d.getTime())));
+  const y = maxD.getFullYear(), m = maxD.getMonth();
+  const monthStart = new Date(y, m, 1);
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const daysElapsed = maxD.getDate();
+  const timePacing = daysElapsed / daysInMonth;
+
+  // MTD spend folded into budget keys (Sting AU/US/UK/DE → one "sting" budget)
+  const spendByKey = {};
+  rawFB.forEach(r => {
+    if (r.d >= monthStart && r.d <= maxD){
+      const key = normalizeClientKey(r.client);
+      spendByKey[key] = (spendByKey[key] || 0) + r.cost;
+    }
+  });
+
+  const rows = [];
+  Object.entries(budgets).forEach(([key, b]) => {
+    let budget, usedFallback = false;
+    if (pacingBudgetMode === 'revised') budget = b.revised != null ? b.revised : (usedFallback = b.original != null, b.original);
+    else                                budget = b.original != null ? b.original : (usedFallback = b.revised != null, b.revised);
+    if (budget == null || budget <= 0) return;              // no budget set → exclude
+    const spend = spendByKey[key] || 0;
+    const budgetUsedPct = spend / budget;
+    const projectedEOM = daysElapsed > 0 ? spend / daysElapsed * daysInMonth : 0;
+    const landing = projectedEOM - budget;
+    const status = Math.abs(budgetUsedPct - timePacing) <= 0.05 ? 'on track'
+                 : budgetUsedPct > timePacing ? 'overpacing' : 'underpacing';
+    rows.push({ key, name: b.client, budget, spend, budgetUsedPct, projectedEOM, landing, status, usedFallback });
+  });
+  rows.sort((a,b) => b.budget - a.budget);
+
+  const totBudget = rows.reduce((s,r) => s + r.budget, 0);
+  const totSpend  = rows.reduce((s,r) => s + r.spend, 0);
+  const totProj   = rows.reduce((s,r) => s + r.projectedEOM, 0);
+  return {
+    rows, timePacing, daysElapsed, daysInMonth, maxD,
+    portfolio: {
+      budget: totBudget, spend: totSpend, projected: totProj, landing: totProj - totBudget,
+      usedPct: totBudget > 0 ? totSpend / totBudget : 0,
+    },
+  };
+}
+
+function renderPacing(){
+  const sec = document.getElementById('pacingSection');
+  const p = computePacing();
+  if (!p || !p.rows.length){ sec.hidden = true; return; }
+  sec.hidden = false;
+
+  document.getElementById('pacingOriginal').classList.toggle('active', pacingBudgetMode === 'original');
+  document.getElementById('pacingRevised').classList.toggle('active', pacingBudgetMode === 'revised');
+
+  const monthName = p.maxD.toLocaleDateString('en-AU', { month:'long', year:'numeric' });
+  const port = p.portfolio;
+  const portStatus = Math.abs(port.usedPct - p.timePacing) <= 0.05 ? 'on track' : port.usedPct > p.timePacing ? 'overpacing' : 'underpacing';
+  const portCol = pacingColor(portStatus);
+  const kpis = [
+    { label: `Total budget · ${pacingBudgetMode}`, value: fmtMoney(port.budget), sub: monthName },
+    { label: 'Spend MTD', value: fmtMoney(port.spend), sub: `${(port.usedPct*100).toFixed(0)}% used · ${(p.timePacing*100).toFixed(0)}% of month elapsed` },
+    { label: 'Projected EOM', value: fmtMoney(port.projected), sub: `<span style="color:${portCol};font-weight:600;">${port.landing>=0?'+':''}${fmtMoney(port.landing)} vs budget · ${portStatus}</span>` },
+  ];
+  document.getElementById('pacingKpis').innerHTML = kpis.map(c => `
+    <div class="metric">
+      <div class="metric-label">${c.label}</div>
+      <div class="metric-value">${c.value}</div>
+      <div class="metric-sub"><span>${c.sub}</span></div>
+    </div>`).join('');
+
+  document.getElementById('pacingRows').innerHTML = p.rows.map(r => {
+    const col = pacingColor(r.status);
+    const usedW = Math.min(100, Math.max(1, r.budgetUsedPct*100));
+    const markerL = Math.min(100, p.timePacing*100);
+    return `
+      <div class="pacing-row">
+        <div class="pacing-head">
+          <span class="pacing-name">${r.name}${r.usedFallback?` <span style="font-weight:500;color:var(--dim);font-size:10px;">(only one budget set)</span>`:''}</span>
+          <span class="pacing-budget">${fmtMoneyFull(r.spend)} / ${fmtMoneyFull(r.budget)}</span>
+        </div>
+        <div class="pacing-track">
+          <div class="pacing-fill" style="width:${usedW}%;background:${col};"></div>
+          <div class="pacing-marker" style="left:${markerL}%;" title="Time elapsed ${(p.timePacing*100).toFixed(0)}%"></div>
+        </div>
+        <div class="pacing-foot">
+          <span>${(r.budgetUsedPct*100).toFixed(0)}% of budget used</span>
+          <span>Proj EOM <strong style="color:var(--ink)">${fmtMoney(r.projectedEOM)}</strong> · <span style="color:${col}">${r.landing>=0?'+':''}${fmtMoney(r.landing)}</span> · <span class="pacing-status" style="color:${col}">${r.status}</span></span>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('pacingCaption').textContent =
+    `Current calendar month (${monthName}). Budgets from NEW Budget Tracker; spend from live feed. Day ${p.daysElapsed} of ${p.daysInMonth}.`;
+}
+
+function setPacingMode(mode){
+  if (mode !== 'original' && mode !== 'revised') return;
+  pacingBudgetMode = mode;
+  renderPacing();
+}
+
+// =============================================================================
 // STATE
 // =============================================================================
 let rawFB = [];           // all FB campaign-day rows (after parsing)
@@ -853,6 +1052,8 @@ let campaignPage = 1;
 const PAGE_SIZE = 25;
 let dailyChart = null;
 let hasGA4 = false;       // true only when the active feed carries a non-trivial GA4 LC revenue column (Task 2)
+let budgets = {};         // normalizeClientKey(name) → { client, original, revised, lc, meta } (Task 3)
+let pacingBudgetMode = 'revised';   // 'revised' | 'original' — which budget column to pace against
 
 // =============================================================================
 // LOAD DATA (live from sheet)
@@ -873,11 +1074,12 @@ async function loadData(){
     const optionalText = (gid, name) => gid ? fetchText(gid, name).catch(e => { console.warn('[' + name + '] ' + e.message); return null; }) : Promise.resolve(null);
 
     // Fetch in parallel (required + optional)
-    const [fbText, coText, mappingText, ga4Text] = await Promise.all([
+    const [fbText, coText, mappingText, ga4Text, budgetText] = await Promise.all([
       fetchText(GID_FB, 'FB sheet'),
       fetchText(GID_CLIENT, 'Client Overview'),
       optionalText(GID_MAPPING, 'Client Mapping'),
       optionalText(GID_FEED_GA4, 'Campaign Feed GA4'),
+      optionalText(GID_BUDGET, 'Budget Tracker'),
     ]);
 
     // Parse Client Overview to extract account→client mapping (columns 12, 13, 14: N, O, P — Facebook Ad Account, GA4 Property, Client Name)
@@ -928,6 +1130,9 @@ async function loadData(){
     hasGA4 = rawFB.reduce((s,r) => s + (r.lcRevenue||0), 0) > 0;
     document.body.classList.toggle('has-ga4', hasGA4);
 
+    // Task 3: parse current-month budgets (no-op if tab absent / empty / all-transient)
+    parseBudgets(budgetText);
+
     // Update last refresh timestamp
     document.getElementById('lastRefresh').textContent =
       new Date().toLocaleString('en-AU', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -940,6 +1145,7 @@ async function loadData(){
 
     // Render
     renderAll();
+    renderPacing();   // independent of the time tabs / filters — current month only
 
     document.getElementById('loadingState').hidden = true;
     document.getElementById('dashboard').hidden = false;
@@ -1742,7 +1948,30 @@ function buildDataContext(){
     top_roas_campaigns: campArr.filter(c => c.spend >= 50).sort((a,b) => b.roas - a.roas).slice(0, 10),
     underperformers: campArr.filter(c => c.spend >= 50 && c.roas < 1).sort((a,b) => b.spend - a.spend).slice(0, 15),
     wasted_spend_campaigns: campArr.filter(c => c.spend > 20 && c.revenue === 0).sort((a,b) => b.spend - a.spend).slice(0, 15),
+    ...(pacingSummaryForContext() || {}),
   };
+}
+
+// Compact current-month pacing block for the chat (independent of the view's date range).
+function pacingSummaryForContext(){
+  const p = computePacing();
+  if (!p || !p.rows.length) return null;
+  return { current_month_pacing: {
+    note: 'CURRENT CALENDAR MONTH ONLY — independent of the view date range above. Spend is MTD from the live feed; budgets from the budget tracker.',
+    budget_basis: pacingBudgetMode,
+    month: p.maxD.toISOString().slice(0,7),
+    days_elapsed: p.daysElapsed, days_in_month: p.daysInMonth,
+    time_pacing_pct: +(p.timePacing*100).toFixed(0),
+    portfolio: {
+      budget: Math.round(p.portfolio.budget), spend_mtd: Math.round(p.portfolio.spend),
+      projected_eom: Math.round(p.portfolio.projected), landing_vs_budget: Math.round(p.portfolio.landing),
+    },
+    by_client: p.rows.map(r => ({
+      client: r.name, budget: Math.round(r.budget), spend_mtd: Math.round(r.spend),
+      budget_used_pct: +(r.budgetUsedPct*100).toFixed(0), projected_eom: Math.round(r.projectedEOM),
+      landing_vs_budget: Math.round(r.landing), status: r.status,
+    })),
+  } };
 }
 
 function buildSystemPrompt(){
@@ -1752,6 +1981,8 @@ function buildSystemPrompt(){
 The user's CURRENT filtered view is provided as JSON below. Use ONLY these numbers — do not invent figures. If the user asks about something not in this data (a different date range, a client that's not visible, or detail beyond the top-N lists), tell them which filter or time range to adjust to see it.
 ${hasGA4 ? `
 This view includes TWO attribution models. \`revenue\`/\`roas\` are Meta platform-attributed (Facebook's own view, which tends to over-claim). \`ga4_lc_revenue\`/\`ga4_roas\` are GA4 last-click (a more conservative view that under-claims). The truth usually sits between them — quote both when judging performance, and flag large gaps between the two as possible attribution/tracking issues.` : ''}
+
+If a \`current_month_pacing\` block is present, you can answer budget questions ("who's overpacing?", "are we on track for the month?"). IMPORTANT: that block always covers the CURRENT calendar month only and is independent of the view's date range above — never blend its month-to-date figures with the date-range totals, and say "this month" when you quote it.
 
 \`\`\`json
 ${JSON.stringify(ctx, null, 2)}

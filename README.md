@@ -32,11 +32,14 @@ from a CDN. Pattern fonts come from Google Fonts.
 
 ### Data flow
 
-1. On page load (and on every Refresh click), `index.html` does two parallel
+1. On page load (and on every Refresh click), `index.html` does parallel
    `fetch()` calls to the published Google Sheet's CSV endpoint:
-   - `Facebook Revenue Sheet` (gid 131056311) — every campaign-day row
-   - `Client Overview` (gid 220651307) — account-day rollup *and* the
-     `Account → Client` mapping (last three columns)
+   - `Facebook Revenue Sheet` (gid 131056311) — every campaign-day row *(required)*
+   - `Client Overview` (gid 220651307) — account-day rollup *and* the legacy
+     `Account → Client` mapping (last three columns) *(required)*
+   - Optionally, the three new tabs (Client Mapping, Campaign Feed GA4, Budget
+     Tracker) when their GID constants are set — each best-effort, so a failure
+     just no-ops that feature (see Configuration)
 2. The CSV is parsed in-browser (no server), enriched with derived `region` and
    `objective` from naming conventions, and aggregated into the KPI strip,
    charts, insight cards, tables, and recommendations.
@@ -119,10 +122,46 @@ The sheet ID is set in two places in `index.html`. Search for
 const PUB_BASE = 'https://docs.google.com/spreadsheets/d/e/<pub-id>/pub';
 const GID_FB = 131056311;      // Facebook Revenue Sheet
 const GID_CLIENT = 220651307;  // Client Overview
+
+// New tabs — IMPORTRANGE mirror tabs in the same master sheet (same PUB_BASE).
+// Leave any of these null/'' to no-op the corresponding feature cleanly.
+const GID_MAPPING  = null;     // "Client Mapping (Import)"    — deterministic account→client lookup
+const GID_BUDGET   = null;     // "Budget Tracker (Import)"    — current-month budgets (pacing)
+const GID_FEED_GA4 = null;     // "Campaign Feed GA4 (Import)" — campaign-day feed WITH GA4 columns
 ```
 
 To find the GIDs of other tabs, open the published HTML view of the sheet
 and look at the tab URLs.
+
+### New data tabs (mapping, GA4 feed, budget pacing)
+
+Three optional features read additional tabs of the **same** master sheet.
+They are `IMPORTRANGE` mirror tabs (auto-synced from the separate "Paid Social
+Monthly Budgets" workbook), each **Published to web → CSV**. Paste each tab's
+published GID into the constant above:
+
+| Constant | Tab | Powers | Behaviour when blank/404 |
+|---|---|---|---|
+| `GID_MAPPING` | Client Mapping (Import) | Deterministic `account → client` lookup | Falls back to the legacy Client Overview map (Sting collapse returns) |
+| `GID_BUDGET` | Budget Tracker (Import) | Budget-pacing section (this month) | Pacing section is hidden |
+| `GID_FEED_GA4` | Campaign Feed GA4 (Import) | GA4 last-click ROAS columns/KPIs; becomes the primary campaign-day feed | Stays on `GID_FB`, Meta-only |
+
+Every new feature **degrades gracefully**: if its tab is missing, returns 404,
+is empty, or comes back as an IMPORTRANGE transient (`Loading...`, `#REF!`,
+`#N/A`, `#ERROR!`), the feature simply hides itself and the rest of the
+dashboard renders normally — no console errors.
+
+**Budget pacing scope (important):** the pacing section is **current calendar
+month only** and is matched at the **client level** (not per-campaign). It is
+deliberately independent of the 7/30/90/custom time tabs — budgets come from the
+tracker (a daily-overwritten MTD snapshot) while spend MTD is computed from the
+live feed, anchored to the feed's latest date. The Original ▸ Revised toggle
+flips which budget column every number paces against.
+
+**GA4 feed switch:** when `GID_FEED_GA4` is set, that tab *replaces* the bare FB
+sheet as the campaign-day feed (it carries both Meta and GA4 revenue). GA4 UI is
+feature-detected from a non-trivial `LC Revenue (GA4)` column, so a feed without
+real GA4 numbers stays Meta-only.
 
 ### Change the model
 
@@ -161,23 +200,64 @@ turn Facebook ad account names into display client names.
 If you rename either tab or change column order, the parser needs updating —
 see `loadData()` in `index.html`.
 
+### Optional tabs
+
+These are read only if their GID constant is set (see Configuration). All are
+parsed defensively (header-detected columns, IMPORTRANGE transients skipped).
+
+**Client Mapping (Import)** — header row 1, columns located by name:
+
+| Client Name | Meta OR TikTok Ad Account | GA4 Property Name |
+|---|---|---|
+
+An ad account that serves several region-specific clients (e.g. *Sting AU / US /
+UK / DE* on one Meta account) is keyed `account + '|' + region` so each region
+resolves to the right client. Region is taken from an explicit `Region` column
+if present, otherwise derived from the client name via `getRegion()`.
+
+**Campaign Feed GA4 (Import)** — mirrors `Data Import New`:
+
+| Date | Month | Meta Ads Account | Campaign | Region | Spends | Meta Ads Revenue | Facebook ROAS | LC Revenue (GA4) | LC ROAS |
+|---|---|---|---|---|---|---|---|---|---|
+
+`LC Revenue (GA4)` becomes the per-row `lcRevenue` used for GA4 ROAS.
+
+**Budget Tracker (Import)** — mirrors `NEW Budget Tracker`. A metadata block,
+then repeating client blocks. The parser skips to the row whose first cell is
+exactly `Client`, tracks the current client, and reads each client's totals from
+its `All Campaign Spend` subtotal row:
+
+| col 0 | col 1 | col 2 | col 3 | col 4 | col 8 | col 9 |
+|---|---|---|---|---|---|---|
+| Client | Campaign Name | Original Budget | Revised Budget | Spend MTD | Revenue LC MTD | Revenue META MTD |
+
+Client names contain embedded newlines and region suffixes (`"STING AU + US + UK
++ DE"`); `normalizeClientKey()` collapses these to a join key so tracker labels
+match the dashboard's client names. Add bridges to the `CLIENT_ALIASES` map in
+`index.html` for any labels that don't collapse automatically. Blank budgets are
+treated as "no budget set" (excluded from pacing); `#DIV/0!` and other error
+strings coerce to null.
+
 ---
 
 ## Known limitations
 
-- **Spend duplication**: `Sting Sports Main Ad Account` is mapped to multiple
-  clients in the sheet (Sting AU, Sting US, Sting UK, Sting DE) all pointing
-  at the same FB ad account. Last-write-wins, so the dashboard currently shows
-  it as "Sting DE". If that matters, the mapping needs to use account + region
-  as the key.
+- **Spend duplication** (fixed when `GID_MAPPING` is set): `Sting Sports Main Ad
+  Account` maps to four clients (Sting AU/US/UK/DE) on one FB ad account. With
+  the Client Mapping tab wired up, spend is keyed on `account + '|' + region` so
+  each region resolves correctly; without it, the legacy last-write-wins applies
+  (shows as "Sting DE"). Region detection must distinguish the regions in play —
+  `getRegion()` now covers AU/NZ/US/UK/DE/ANZ; if campaign/account names don't
+  carry a region token, those rows default to AU and same-region duplicates fall
+  back to first-match (logged via `console.warn`).
 - **Region detection** uses regex on the account/campaign name. Most patterns
   in the current sheet are covered (`| NZ |`, `-NZ-`, `USA`, etc.), but
   unusual naming will fall into `AU` by default.
 - **Objective detection** uses keyword matching. Campaigns whose name doesn't
   contain `Retargeting`, `Prospecting`, `Awareness`, `Traffic`, `DPA`,
   `Advantage`, `Conversion`, `Video` etc. land in `Other`.
-- **No GA4 metrics** in the chart yet — only Meta-attributed revenue. GA4
-  last-click numbers exist in the Client Overview sheet and could be added.
+- **GA4 metrics** require the `Campaign Feed GA4 (Import)` tab (`GID_FEED_GA4`).
+  Without it the dashboard is Meta-attributed only, as before.
 - **Browser-only**. There's no backend storing anything. State persists only
   in the URL hash.
 
@@ -185,7 +265,6 @@ see `loadData()` in `index.html`.
 
 ## Roadmap ideas
 
-- GA4 last-click ROAS alongside Meta ROAS (conservative attribution)
 - Click a client bar to filter to it
 - Comparison mode (current period vs same-length prior period)
 - Auto-refresh every N minutes (toggle)
