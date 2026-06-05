@@ -124,10 +124,10 @@ const GID_FB = 131056311;      // Facebook Revenue Sheet
 const GID_CLIENT = 220651307;  // Client Overview
 
 // New tabs — IMPORTRANGE mirror tabs in the same master sheet (same PUB_BASE).
-// Leave any of these null/'' to no-op the corresponding feature cleanly.
-const GID_MAPPING  = null;     // "Client Mapping (Import)"    — deterministic account→client lookup
-const GID_BUDGET   = null;     // "Budget Tracker (Import)"    — current-month budgets (pacing)
-const GID_FEED_GA4 = null;     // "Campaign Feed GA4 (Import)" — campaign-day feed WITH GA4 columns
+// Set to null to no-op the corresponding feature cleanly.
+const GID_MAPPING  = 743698623;   // "Client Mapping (Import)"    — deterministic account→client lookup
+const GID_BUDGET   = 574177160;   // "Budget Tracker (Import)"    — current-month budgets (pacing)
+const GID_FEED_GA4 = 1544930162;  // "Campaign Feed GA4 (Import)" — campaign-day feed WITH GA4 columns (uses "1 Jan 2026" dates)
 ```
 
 To find the GIDs of other tabs, open the published HTML view of the sheet

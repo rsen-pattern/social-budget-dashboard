@@ -93,7 +93,7 @@ body{font-family:var(--font-display);color:var(--ink);font-size:14px;line-height
 .custom-hint{font-size:11px;color:var(--muted);font-family:var(--font-mono);}
 
 /* ============== KPI GRID ============== */
-.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:22px;}
 .metric{background:var(--widget);border-radius:12px;border:1px solid var(--line);border-top:3px solid var(--blue-bright);padding:16px 18px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
 .metric.hero{border-top-color:var(--blue-brand);}
 .metric.warn{border-top-color:var(--warn);}
@@ -111,8 +111,9 @@ body{font-family:var(--font-display);color:var(--ink);font-size:14px;line-height
 .callout strong{color:var(--ink);font-weight:600;}
 
 /* ============== CHART ROW ============== */
-.chart-row{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:22px;}
-.card{background:var(--widget);border-radius:12px;border:1px solid var(--line);padding:20px 22px;box-shadow:var(--shadow-sm);}
+.chart-row{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:14px;margin-bottom:22px;}
+.card{background:var(--widget);border-radius:12px;border:1px solid var(--line);padding:20px 22px;box-shadow:var(--shadow-sm);min-width:0;}
+canvas{max-width:100%;}
 .card-title{font-family:var(--font-display);font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;}
 .card-title em{font-family:var(--font-serif);font-style:italic;color:var(--blue-bright);font-weight:400;text-transform:none;letter-spacing:0;font-size:13px;}
 .legend{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap;}
@@ -133,7 +134,7 @@ body{font-family:var(--font-display);color:var(--ink);font-size:14px;line-height
 .section-title em{font-family:var(--font-serif);font-style:italic;color:var(--blue-bright);font-weight:400;text-transform:none;letter-spacing:0;font-size:13px;}
 
 /* ============== INSIGHTS GRID (3 cards) ============== */
-.insight-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
+.insight-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:22px;}
 .insight-card{background:var(--widget);border-radius:12px;border:1px solid var(--line);padding:18px;box-shadow:var(--shadow-sm);}
 .insight-card.good{border-top:3px solid var(--pos);}
 .insight-card.bad{border-top:3px solid var(--neg);}
@@ -227,15 +228,17 @@ tbody tr:hover td{background:rgba(0,155,255,0.04);}
 
 /* ============== RESPONSIVE ============== */
 @media(max-width:960px){
-  .metric-grid{grid-template-columns:repeat(2,1fr);}
-  .chart-row{grid-template-columns:1fr;}
-  .insight-grid{grid-template-columns:1fr;}
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .chart-row{grid-template-columns:minmax(0,1fr);}
+  .insight-grid{grid-template-columns:minmax(0,1fr);}
+  #pacingKpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
   .header-left h1{font-size:30px;}
 }
 @media(max-width:600px){
   .page{padding:24px 16px 40px;}
   .header-left h1{font-size:26px;}
   .header-right{width:100%;}
+  #pacingKpis{grid-template-columns:minmax(0,1fr) !important;}
 }
 
 /* ============== CHAT FAB + PANEL ============== */
@@ -312,6 +315,7 @@ body.has-ga4 .ga4-col{display:table-cell;}
 body.has-ga4 .ga4-legend{display:flex;}
 
 /* ============== BUDGET PACING (Task 3) ============== */
+#pacingKpis{grid-template-columns:repeat(3,minmax(0,1fr));}
 .pacing-toggle{display:flex;align-items:center;gap:6px;}
 .pacing-toggle-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-right:2px;}
 .pacing-btn{font-family:var(--font-display);font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all .12s;}
@@ -434,7 +438,7 @@ body.has-ga4 .ga4-legend{display:flex;}
           <button class="pacing-btn active" id="pacingRevised" onclick="setPacingMode('revised')">Revised</button>
         </div>
       </div>
-      <div class="metric-grid" id="pacingKpis" style="grid-template-columns:repeat(3,1fr);"></div>
+      <div class="metric-grid" id="pacingKpis"></div>
       <div class="card" style="margin-bottom:22px;">
         <div id="pacingRows"></div>
         <div class="pacing-caption" id="pacingCaption"></div>
@@ -666,9 +670,9 @@ const GID_CLIENT = 220651307;      // "Client Overview"
 // Paste each tab's published GID below. Leave null/'' to no-op that feature
 // cleanly (the dashboard then behaves exactly as before). Find a GID in the
 // tab's "Publish to web → CSV" URL (the gid= value).
-const GID_MAPPING  = null;   // "Client Mapping (Import)"    — deterministic account→client lookup (Task 1)
-const GID_BUDGET   = null;   // "Budget Tracker (Import)"    — current-month budgets for pacing (Task 3)
-const GID_FEED_GA4 = null;   // "Campaign Feed GA4 (Import)" — campaign-day feed WITH GA4 LC columns (Task 2). Blank = keep FB feed, Meta-only.
+const GID_MAPPING  = 743698623;   // "Client Mapping (Import)"    — deterministic account→client lookup (Task 1)
+const GID_BUDGET   = 574177160;   // "Budget Tracker (Import)"    — current-month budgets for pacing (Task 3)
+const GID_FEED_GA4 = 1544930162;  // "Campaign Feed GA4 (Import)" — campaign-day feed WITH GA4 LC columns (Task 2). Set to null to keep FB feed, Meta-only.
 
 const csvUrl = gid => `${PUB_BASE}?output=csv&single=true&gid=${gid}&t=${Date.now()}`;
 
@@ -727,6 +731,17 @@ const parseISODate = s => {
   // "2026-01-01" format
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s + 'T00:00:00');
   return null;
+};
+
+// Flexible date parse for feeds that don't use ISO (the GA4 import tab uses
+// "1 Jan 2026"). Tries ISO first, then lets the engine parse common formats;
+// normalises to local midnight so day-of-month / month math stays stable.
+const parseFeedDate = s => {
+  if (!s || isTransientCell(s)) return null;
+  const iso = parseISODate(s);
+  if (iso) return iso;
+  const d = new Date(String(s).trim());
+  return isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
 };
 
 const fmtMoney = v => {
@@ -792,6 +807,20 @@ function roasClass(roas, spend){
 // differ only by region (e.g. Sting AU/US/UK/DE on one Meta account) is keyed on
 // account+'|'+region so each region's spend resolves to the right client.
 // =============================================================================
+// Region implied by a client label (e.g. "Baby Bunting NZ" → NZ, "Helen
+// Kaminski USA" → US). Uses the same AU/NZ/US/UK/DE/ANZ vocabulary getRegion()
+// emits for feed rows, so the two sides join. ANZ is checked before NZ so
+// "AU + NZ" doesn't read as NZ.
+function regionFromClientName(name){
+  const t = (name||'').toUpperCase();
+  if (/\bUSA?\b|AMERICA/.test(t)) return 'US';
+  if (/\bUK\b|UNITED KINGDOM|\bGB\b|BRITAIN/.test(t)) return 'UK';
+  if (/\bDE\b|GERMANY|DEUTSCHLAND/.test(t)) return 'DE';
+  if (/AU ?\+ ?NZ|\bANZ\b/.test(t)) return 'ANZ';
+  if (/\bNZ\b|NEW ZEALAND/.test(t)) return 'NZ';
+  return 'AU';
+}
+
 function buildMapping(text){
   mapAcctRegion = {};
   mapAcctSingle = {};
@@ -805,27 +834,34 @@ function buildMapping(text){
   const iRegion = find(/region/);          // optional explicit region column
   if (iClient < 0 || iAcc < 0){ console.warn('[mapping] could not locate Client / Ad Account columns — keeping legacy mapping'); return; }
 
-  // account → [{client, region}]
-  const acctClients = {};
+  // account → { region → client }. The tab may carry near-duplicate sections
+  // (e.g. "Converse Meta" and "Converse" for one account); we keep the FIRST
+  // client per account+region and ignore later restatements. We only warn when
+  // a later row names a genuinely DIFFERENT client (different normalised key)
+  // for an account+region we've already filled — a real ambiguity.
+  const acctRegionClient = {};   // acc → { region → client }
+  const acctAllClients   = {};   // acc → Set of normalised client keys (to detect single-client accounts)
   for (let i = 1; i < rows.length; i++){
     const r = rows[i];
     const client = (r[iClient]||'').replace(/\s+/g,' ').trim();
     const acc    = (r[iAcc]||'').replace(/\s+/g,' ').trim();
-    if (!client || !acc || isTransientCell(client) || isTransientCell(acc)) continue;  // skip blanks / IMPORTRANGE transients
+    if (!client || !acc || isTransientCell(client) || isTransientCell(acc)) continue;   // skip blanks / transients
+    if (/^client( name)?$/i.test(client)) continue;                                     // repeated header row
     let region = iRegion >= 0 ? (r[iRegion]||'').trim().toUpperCase() : '';
-    if (!region || isTransientCell(region)) region = getRegion(client, acc);  // client name carries the AU/US/UK/DE suffix
-    (acctClients[acc] = acctClients[acc] || []).push({ client, region });
+    if (!region || isTransientCell(region)) region = regionFromClientName(client);
+    const byRegion = acctRegionClient[acc] = acctRegionClient[acc] || {};
+    if (!(region in byRegion)){
+      byRegion[region] = client;
+    } else if (normalizeClientKey(byRegion[region]) !== normalizeClientKey(client)){
+      console.warn(`[mapping] account "${acc}" maps to multiple clients in region ${region}: "${byRegion[region]}" and "${client}" — using first`);
+    }
+    (acctAllClients[acc] = acctAllClients[acc] || new Set()).add(normalizeClientKey(client));
   }
 
-  Object.entries(acctClients).forEach(([acc, list]) => {
-    if (list.length === 1) mapAcctSingle[acc] = list[0].client;   // unambiguous plain-account fallback
-    const byRegion = {};
-    list.forEach(x => { (byRegion[x.region] = byRegion[x.region] || []).push(x.client); });
-    Object.entries(byRegion).forEach(([region, clients]) => {
-      if (clients.length > 1)
-        console.warn(`[mapping] account "${acc}" maps to ${clients.length} clients in region ${region}: ${clients.join(', ')} — using first`);
-      mapAcctRegion[acc + '|' + region] = clients[0];
-    });
+  Object.entries(acctRegionClient).forEach(([acc, byRegion]) => {
+    Object.entries(byRegion).forEach(([region, client]) => { mapAcctRegion[acc + '|' + region] = client; });
+    // Plain-account fallback only when the whole account resolves to one client.
+    if (acctAllClients[acc].size === 1) mapAcctSingle[acc] = Object.values(byRegion)[0];
   });
 }
 
@@ -858,7 +894,7 @@ function parseGA4Feed(text){
   for (let i = 1; i < rows.length; i++){
     const r = rows[i];
     if (!r[iDate] || isTransientCell(r[iDate])) continue;       // blank trailing / transient rows
-    const d = parseISODate(r[iDate]); if (!d) continue;
+    const d = parseFeedDate(r[iDate]); if (!d) continue;        // GA4 tab uses "1 Jan 2026", not ISO
     const account = (r[iAcc]||'').trim(); if (!account || isTransientCell(account)) continue;
     const campaign = (r[iCamp]||'').trim();
     const region = getRegion(account, campaign);
@@ -882,7 +918,10 @@ function parseGA4Feed(text){
 // here when a tracker client label and the feed's client label don't collapse
 // to the same key automatically (key/value are both already-normalised tokens).
 const CLIENT_ALIASES = {
-  // 'helen kaminski': 'helen kaminski',   // example placeholder — extend as needed
+  // Bridge tracker labels to feed/mapping labels where normalisation alone can't.
+  // (verified against live data: budget client ↔ feed client)
+  'pure sports': 'pure',      // tracker "PURE Sports AU + NZ" ↔ feed "Pure AU"/"Pure NZ"
+  'perri cutten': 'perri',    // feed "Perri Cutten" ↔ tracker "Perri"
 };
 
 // Collapse a client label (tracker OR dashboard) to a join key: drop embedded
