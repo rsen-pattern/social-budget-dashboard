@@ -1,0 +1,126 @@
+{
+  "name": "Social Budget — Daily Slack Pacing Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "sched-trigger",
+      "name": "Weekday 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vT-eN2NO8xpsyuBEKnx_e4Qi8CfgzcFvclr0C5Cfe1_Lpl0Odpadd7d56UtbZRoGVIrUkY7Ccjh2Yof/pub?output=csv&single=true&gid=574177160",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "id": "http-tracker",
+      "name": "Fetch Budget Tracker CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// === Social Budget — daily Slack pacing / wasted-spend / ROAS digest =========\n// Reads the published \"Budget Tracker (Import)\" CSV from the HTTP Request node\n// (set that node's Response Format = \"Text\") and builds one Slack message:\n// a portfolio digest plus only the sections that have something to flag.\n// All thresholds are tunable below.\n\n// ---- tunables ---------------------------------------------------------------\nconst OVERPACE_PTS    = 0.05;      // overpacing when spend% exceeds time% by > 5 pts\nconst UNDERPACE_PTS   = 0.10;      // underpacing when spend% trails time% by > 10 pts\nconst WASTE_MIN_SPEND = 500;       // $ spent with ~$0 revenue counts as wasted\nconst ROAS_FLOOR      = 1.0;       // META ROAS below this triggers a low-ROAS alert\nconst BUDGET_MODE     = 'revised'; // 'revised' | 'original'\n\n// ---- get CSV text -----------------------------------------------------------\nconst inJson = $input.first().json;\nconst csv = inJson.data || inJson.body || (typeof inJson === 'string' ? inJson : '');\nif (!csv || typeof csv !== 'string') {\n  throw new Error('No CSV text on incoming item — set the HTTP Request node Response Format to \"Text\".');\n}\n\n// ---- CSV parser (quoted fields + embedded newlines) -------------------------\nfunction parseCSV(text) {\n  const rows = []; let row = [], field = '', inQ = false;\n  for (let i = 0; i < text.length; i++) {\n    const ch = text[i];\n    if (inQ) {\n      if (ch === '\"' && text[i + 1] === '\"') { field += '\"'; i++; }\n      else if (ch === '\"') { inQ = false; }\n      else { field += ch; }\n    } else {\n      if (ch === '\"') inQ = true;\n      else if (ch === ',') { row.push(field); field = ''; }\n      else if (ch === '\\n') { row.push(field); rows.push(row); row = []; field = ''; }\n      else if (ch === '\\r') { /* skip */ }\n      else { field += ch; }\n    }\n  }\n  if (field.length || row.length) { row.push(field); rows.push(row); }\n  return rows;\n}\n\n// strip $ , % ; treat #REF!/#DIV/0!/#VALUE!/NA/blank/Loading as null\nconst num = s => {\n  const t = String(s == null ? '' : s).trim();\n  if (t === '' || /^#|^na$|^loading/i.test(t)) return null;\n  const v = parseFloat(t.replace(/[$,%\\s]/g, ''));\n  return isFinite(v) ? v : null;\n};\nconst pct   = s => { const v = num(s); return v == null ? null : (String(s).includes('%') ? v / 100 : v); };\nconst money = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();\n\nconst rows = parseCSV(csv);\n\n// ---- time pacing + as-of date from the metadata block -----------------------\nlet timePacing = null, daysLeft = null, asOf = null;\nfor (const r of rows) {\n  const label = (r[1] || '').toLowerCase().trim();\n  if (label === 'time pacing') timePacing = pct(r[2]);\n  if (label.startsWith('days left')) daysLeft = num(r[2]);\n  if (label === 'today') asOf = r[2];\n}\n\n// ---- per-client totals = the \"All Campaign Spend\" subtotal rows -------------\nlet h = -1;\nfor (let i = 0; i < rows.length; i++) { if ((rows[i][0] || '').trim() === 'Client') { h = i; break; } }\nif (h < 0) throw new Error('Could not find the \"Client\" header row in the tracker CSV.');\n\nconst clients = []; let cur = null;\nfor (let i = h + 1; i < rows.length; i++) {\n  const r = rows[i];\n  const c0 = (r[0] || '').replace(/[\\r\\n]+/g, ' ').replace(/\\s+/g, ' ').trim();\n  const c1 = (r[1] || '').replace(/\\s+/g, ' ').trim();\n  if (c0 === 'Client') continue;          // repeated header\n  if (c0) cur = c0;                        // client-start row\n  if (c1 === 'All Campaign Spend' && cur) {\n    const original = num(r[2]), revised = num(r[3]);\n    const budget = BUDGET_MODE === 'revised'\n      ? (revised != null ? revised : original)\n      : (original != null ? original : revised);\n    clients.push({\n      name: cur,\n      budget,\n      spend:    num(r[4]) || 0,   // Spend MTD\n      revLC:    num(r[8]) || 0,   // Revenue LC MTD\n      revMeta:  num(r[9]) || 0,   // Revenue META MTD\n      lcRoas:   num(r[10]),       // LC ROAS MTD\n      metaRoas: num(r[11]),       // META ROAS MTD\n    });\n    cur = null;\n  }\n}\n\n// ---- classify ---------------------------------------------------------------\nconst over = [], under = [], wasted = [], lowRoas = [];\nlet totBudget = 0, totSpend = 0, totRevMeta = 0, totRevLC = 0;\nfor (const c of clients) {\n  totSpend += c.spend; totRevMeta += c.revMeta; totRevLC += c.revLC;\n  if (c.budget) totBudget += c.budget;\n  if (c.budget && c.budget > 0 && timePacing != null) {\n    const used = c.spend / c.budget, delta = used - timePacing;\n    if (delta > OVERPACE_PTS) over.push({ ...c, used, delta });\n    else if (delta < -UNDERPACE_PTS) under.push({ ...c, used, delta });\n  }\n  if (c.spend > WASTE_MIN_SPEND && (c.revLC + c.revMeta) <= 0) wasted.push(c);\n  if (c.metaRoas != null && c.metaRoas < ROAS_FLOOR && c.spend > WASTE_MIN_SPEND) lowRoas.push(c);\n}\nover.sort((a, b) => b.delta - a.delta);\nunder.sort((a, b) => a.delta - b.delta);\nwasted.sort((a, b) => b.spend - a.spend);\nlowRoas.sort((a, b) => a.metaRoas - b.metaRoas);\n\n// ---- build Slack message ----------------------------------------------------\nconst tp          = timePacing != null ? Math.round(timePacing * 100) + '%' : '—';\nconst portfUsed   = totBudget > 0 ? Math.round(totSpend / totBudget * 100) + '%' : '—';\nconst blendedRoas = totSpend > 0 ? (totRevMeta / totSpend).toFixed(2) + '×' : '—';\n\nconst L = [];\nL.push('*📊 Daily Social Budget Pacing — ' + (asOf || new Date().toISOString().slice(0, 10)) + '*');\nL.push('Time pacing *' + tp + '*' + (daysLeft != null ? ' · ' + daysLeft + ' days left' : ''));\nL.push('Spend *' + money(totSpend) + '* / ' + money(totBudget) + ' (*' + portfUsed + '* of budget) · META rev ' + money(totRevMeta) + ' · blended ROAS *' + blendedRoas + '*');\n\nconst paceLine = c => '• *' + c.name.replace(/\\s+/g, ' ') + '* — ' + money(c.spend) + ' / ' + money(c.budget) +\n  ' · used ' + Math.round(c.used * 100) + '% (' + (c.delta >= 0 ? '+' : '') + Math.round(c.delta * 100) + 'pts vs time)';\n\nif (over.length)  { L.push(''); L.push('*🔴 Overpacing (>' + Math.round(OVERPACE_PTS * 100) + 'pts)*'); over.forEach(c => L.push(paceLine(c))); }\nif (under.length) { L.push(''); L.push('*🟡 Underpacing (<-' + Math.round(UNDERPACE_PTS * 100) + 'pts)*'); under.forEach(c => L.push(paceLine(c))); }\nif (wasted.length){ L.push(''); L.push('*💸 Wasted spend (>' + money(WASTE_MIN_SPEND) + ', ~$0 revenue)*'); wasted.forEach(c => L.push('• *' + c.name.replace(/\\s+/g, ' ') + '* — ' + money(c.spend) + ' spent, ' + money(c.revLC + c.revMeta) + ' revenue')); }\nif (lowRoas.length){ L.push(''); L.push('*📉 Low META ROAS (<' + ROAS_FLOOR.toFixed(1) + '×)*'); lowRoas.forEach(c => L.push('• *' + c.name.replace(/\\s+/g, ' ') + '* — ' + c.metaRoas.toFixed(2) + '× on ' + money(c.spend))); }\n\nif (!over.length && !under.length && !wasted.length && !lowRoas.length) {\n  L.push(''); L.push('✅ All clients within pacing / ROAS thresholds.');\n}\n\nreturn [{ json: {\n  text: L.join('\\n'),\n  counts: { over: over.length, under: under.length, wasted: wasted.length, lowRoas: lowRoas.length, clients: clients.length },\n} }];\n"
+      },
+      "id": "code-classify",
+      "name": "Parse & Classify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#social-budget-alerts"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "slack-post",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Weekday 8am": {
+      "main": [
+        [
+          {
+            "node": "Fetch Budget Tracker CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Budget Tracker CSV": {
+      "main": [
+        [
+          {
+            "node": "Parse & Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Classify": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templatecredsSetupCompleted": false
+  }
+}
