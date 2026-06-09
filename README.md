@@ -111,6 +111,46 @@ refresh — no deploy needed.
 
 ---
 
+## Self-hosting
+
+You don't need Netlify. The dashboard is a single static file, so it can run on
+anything you control. Two routes:
+
+### Static only (simplest)
+
+Serve `index.html` with any web server — `python3 -m http.server`, nginx,
+Caddy, an internal share, GitHub Pages, etc. Everything works: live data,
+pacing, GA4, charts, export. The only thing missing is the server-side chat
+proxy, so the "Ask the data" panel falls back to prompting for a Bifrost key
+in-memory for the session (never stored).
+
+### With the chat proxy (`server.js`)
+
+`server.js` is a **zero-dependency** Node server (built-ins only — no
+`npm install`, no `package.json`, no build). It serves `index.html` *and*
+answers `POST /.netlify/functions/chat` — the exact path the frontend already
+calls — so `index.html` is byte-identical whether it runs here or on Netlify.
+Requires Node 18+ (for the global `fetch`).
+
+```bash
+BIFROST_API_KEY=sk-your-key node server.js
+# → http://localhost:8080/   (set PORT to change)
+```
+
+Or with Docker:
+
+```bash
+docker build -t social-budget-dashboard .
+docker run -p 8080:8080 -e BIFROST_API_KEY=sk-your-key social-budget-dashboard
+```
+
+The key stays server-side (read from the `BIFROST_API_KEY` env var, same as the
+Netlify function). If it's unset, the dashboard still runs — chat just prompts
+for a key in-browser. Put it behind your own TLS/reverse proxy (nginx, Caddy,
+Cloudflare Tunnel) for a stable URL.
+
+---
+
 ## Configuration
 
 ### Change the data source
